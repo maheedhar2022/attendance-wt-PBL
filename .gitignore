@@ -1,0 +1,44 @@
+# ── Dependencies ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Environment Files ──────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ── Build Output ───────────────────────────────────────────────
+dist/
+build/
+out/
+
+# ── Logs ───────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── OS / Editor ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Vite / React ───────────────────────────────────────────────
+.vite/
+frontend/.vite/
+
+# ── Misc ───────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.pem

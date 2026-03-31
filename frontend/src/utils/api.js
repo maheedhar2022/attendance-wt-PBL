@@ -1,0 +1,75 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' }
+});
+
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Handle 401 globally
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
+// ── Auth ────────────────────────────────────────────────────
+export const authAPI = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  getMe: () => api.get('/auth/me'),
+  updateProfile: (data) => api.put('/auth/profile', data)
+};
+
+// ── Courses ─────────────────────────────────────────────────
+export const coursesAPI = {
+  getAll: () => api.get('/courses'),
+  getOne: (id) => api.get(`/courses/${id}`),
+  create: (data) => api.post('/courses', data),
+  update: (id, data) => api.put(`/courses/${id}`, data),
+  delete: (id) => api.delete(`/courses/${id}`),
+  enroll: (id) => api.post(`/courses/${id}/enroll`),
+  getStats: (id) => api.get(`/courses/${id}/stats`)
+};
+
+// ── Sessions ────────────────────────────────────────────────
+export const sessionsAPI = {
+  getAll: (params) => api.get('/sessions', { params }),
+  getOne: (id) => api.get(`/sessions/${id}`),
+  create: (data) => api.post('/sessions', data),
+  update: (id, data) => api.put(`/sessions/${id}`, data),
+  delete: (id) => api.delete(`/sessions/${id}`),
+  activate: (id, durationMinutes) => api.patch(`/sessions/${id}/activate`, { durationMinutes }),
+  close: (id) => api.patch(`/sessions/${id}/close`),
+  regenCode: (id) => api.patch(`/sessions/${id}/regen-code`)
+};
+
+// ── Attendance ──────────────────────────────────────────────
+export const attendanceAPI = {
+  mark: (code) => api.post('/attendance/mark', { code }),
+  getMy: (params) => api.get('/attendance/my', { params }),
+  getSession: (sessionId) => api.get(`/attendance/session/${sessionId}`),
+  update: (id, data) => api.put(`/attendance/${id}`, data),
+  addManual: (data) => api.post('/attendance/manual', data),
+  getAnalytics: (courseId) => api.get(`/attendance/analytics/${courseId}`)
+};
+
+// ── Users ────────────────────────────────────────────────────
+export const usersAPI = {
+  searchStudents: (q) => api.get('/users/students', { params: { q } }),
+  addToCourse: (courseId, studentId) => api.post(`/users/courses/${courseId}/add-student`, { studentId })
+};
+
+export default api;
