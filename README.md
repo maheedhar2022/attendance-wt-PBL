@@ -1,3 +1,4 @@
+
 # 🎓 AttendX — Digital Attendance & Session Management System
 
 A full-stack web application for educational institutions to manage student attendance and class sessions digitally.
