@@ -1,43 +1,45 @@
-/* ── Design System (Zoom-Inspired Glassmorphism) ──────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
+
+/* ── Design System (Classic Blue & White Light Theme) ──────────── */
 :root {
-  --bg-color: #f4f6fa; /* Clean light gray/blue canvas */
-  --bg: radial-gradient(circle at 15% 50%, rgba(45, 140, 255, 0.15), transparent 40%),
-        radial-gradient(circle at 85% 30%, rgba(167, 139, 250, 0.1), transparent 40%),
-        #f4f6fa;
+  --bg-color: #f4f7fa; /* Clean light gray/blue canvas */
+  --bg: radial-gradient(circle at 15% 50%, rgba(45, 140, 255, 0.08), transparent 40%),
+        radial-gradient(circle at 85% 30%, rgba(167, 139, 250, 0.05), transparent 40%),
+        #f4f7fa;
   
   /* Glass container tokens */
-  --bg-card: rgba(255, 255, 255, 0.7);
-  --bg-elevated: rgba(255, 255, 255, 0.9);
-  --bg-hover: rgba(255, 255, 255, 1);
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-elevated: rgba(255, 255, 255, 1);
+  --bg-hover: rgba(240, 245, 255, 0.8);
   
-  --border: rgba(0, 0, 0, 0.08); /* Dark subtle border */
+  --border: rgba(0, 0, 0, 0.06); 
   --border-light: rgba(0, 0, 0, 0.04);
-  --border-highlight: rgba(255, 255, 255, 1); /* Frosty top highlight */
+  --border-highlight: rgba(255, 255, 255, 1);
 
-  --accent: #2D8CFF; /* Zoom Blue (kept the same bright color) */
-  --accent-glow: rgba(45, 140, 255, 0.15);
-  --accent-hover: #1b6ddb;
+  --accent: #2563eb; /* Classic clean blue */
+  --accent-glow: rgba(37, 99, 235, 0.15);
+  --accent-hover: #1d4ed8;
   
   --green: #10b981;
-  --green-bg: rgba(16, 185, 129, 0.15);
+  --green-bg: rgba(16, 185, 129, 0.1);
   --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.15);
+  --red-bg: rgba(239, 68, 68, 0.1);
   --yellow: #f59e0b;
-  --yellow-bg: rgba(245, 158, 11, 0.15);
+  --yellow-bg: rgba(245, 158, 11, 0.1);
   --purple: #8b5cf6;
-  --purple-bg: rgba(139, 92, 246, 0.15);
+  --purple-bg: rgba(139, 92, 246, 0.1);
 
-  --text-primary: #1e293b; /* Inter crisp dark slate */
-  --text-secondary: #475569;
+  --text-primary: #0f172a; /* Deep slate for high contrast */
+  --text-secondary: #475569; /* Slate gray for secondary text */
   --text-muted: #64748b;
 
-  --font-display: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
   --radius: 16px;
   --radius-sm: 10px;
   --radius-lg: 24px;
-  --shadow: 0 8px 32px rgba(0, 0, 0, 0.06); /* Lighter shadow for light mode */
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.04); 
   --glass-blur: blur(20px);
 }
 
