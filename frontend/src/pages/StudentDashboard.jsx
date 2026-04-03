@@ -1,118 +1,256 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { sessionsAPI, coursesAPI } from '../utils/api';
-import { format } from 'date-fns';
-import Card from '../components/ui/Card';
-import StatCard from '../components/ui/StatCard';
-import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
-import { Link } from 'react-router-dom';
+import { sessionsAPI, attendanceAPI, coursesAPI } from '../utils/api';
+import { format, formatDistanceToNow } from 'date-fns';
 
-export default function StudentDashboard() {
-  const { user } = useAuth();
-  const [courses, setCourses] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
+function MarkAttendanceModal({ onClose, onSuccess }) {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [cRes, sRes] = await Promise.all([
-          coursesAPI.getAll(),
-          sessionsAPI.getAll({ limit: 5 })
-        ]);
-        setCourses(cRes.data.courses);
-        setSessions(sRes.data.sessions);
-      } catch (err) { console.error(err); } finally { setLoading(false); }
-    };
-    loadData();
-  }, []);
-
-  const getAttendanceRate = () => {
-    // Mock logic for demo
-    return '92%';
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await attendanceAPI.mark(code.toUpperCase());
+      onSuccess?.('Attendance marked successfully! ✅');
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to mark attendance');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const activeSessions = sessions.filter(s => s.status === 'active');
-
-  if (loading) return <div style={{ padding: '100px', textAlign: 'center' }}>Loading dashboard...</div>;
-
   return (
-    <div className="page-wrapper">
-      <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h1 className="page-title">Student Overview</h1>
-          <p className="page-subtitle">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h2 className="modal-title">Mark Attendance</h2>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
-      </div>
-
-      <div className="grid-cols-4" style={{ marginBottom: '24px' }}>
-        <StatCard icon="📚" label="Enrolled Courses" value={courses.length} bg="var(--info-light)" textColor="var(--info)" />
-        <StatCard icon="✅" label="Attendance Rate" value={getAttendanceRate()} bg="var(--success-bg)" textColor="var(--success-text)" />
-        <StatCard icon="📅" label="Classes Today" value={sessions.length} bg="var(--warning-bg)" textColor="var(--warning-text)" />
-        <StatCard icon="🔴" label="Live Now" value={activeSessions.length} bg={activeSessions.length > 0 ? 'var(--danger-bg)' : 'var(--bg-elevated)'} textColor={activeSessions.length > 0 ? 'var(--danger)' : 'var(--text-primary)'} />
-      </div>
-
-      <div className="grid-cols-2">
-        {/* Active/Upcoming Sessions */}
-        <Card title="Today's Classes">
-          {sessions.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-state-icon">🎉</span>
-              <div className="empty-state-title">No classes today</div>
-            </div>
-          ) : (
-            <div className="flex" style={{ flexDirection: 'column', gap: '12px' }}>
-              {sessions.map(session => (
-                <div key={session._id} style={{ 
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                  padding: '16px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)',
-                  background: session.status === 'active' ? 'var(--success-bg)' : 'transparent'
-                }}>
-                  <div>
-                    <h3 style={{ fontSize: '0.95rem', marginBottom: '4px' }}>{session.title || session.topic}</h3>
-                    <div className="text-sm text-muted">{session.course?.title} • {session.startTime}</div>
-                  </div>
-                  <div>
-                    {session.status === 'active' ? (
-                      <Link to={`/student/live/${session._id}`} style={{ textDecoration: 'none' }}>
-                        <Button size="sm" variant="success">Join Class</Button>
-                      </Link>
-                    ) : (
-                      <Badge variant={session.status}>{session.status}</Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* My Courses */}
-        <Card title="My Courses" action={<Link to="/student/courses" style={{ textDecoration: 'none' }}><Button variant="ghost" size="sm">View All</Button></Link>}>
-          {courses.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-state-icon">📚</span>
-              <div className="empty-state-title">Not enrolled</div>
-            </div>
-          ) : (
-            <div className="flex" style={{ flexDirection: 'column', gap: '12px' }}>
-              {courses.map(course => (
-                <div key={course._id} style={{ 
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                  padding: '16px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)'
-                }}>
-                  <div>
-                    <h3 style={{ fontSize: '0.95rem', marginBottom: '4px' }}>{course.title}</h3>
-                    <div className="text-sm text-muted">{course.instructor?.name || 'Instructor'}</div>
-                  </div>
-                  <Badge variant="info">{course.code}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        {error && <div className="alert alert-error">{error}</div>}
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>
+          Enter the 6-character code provided by your instructor.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label">Session Code</label>
+            <input
+              className="form-input"
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              placeholder="e.g. ABC123"
+              maxLength={6}
+              required
+              style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 6, textAlign: 'center', fontWeight: 700 }}
+            />
+          </div>
+          <button className="btn btn-primary" disabled={loading || code.length !== 6}>
+            {loading ? <span className="loading-spinner" /> : '✅ Mark Present'}
+          </button>
+        </form>
       </div>
     </div>
   );
+}
+
+export default function StudentDashboard() {
+  const { user } = useAuth();
+  const [upcomingSessions, setUpcomingSessions] = useState([]);
+  const [attendanceStats, setAttendanceStats] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showMarkModal, setShowMarkModal] = useState(false);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [sessRes, attRes, coursesRes] = await Promise.all([
+        sessionsAPI.getAll({ upcoming: 'true' }),
+        attendanceAPI.getMy(),
+        coursesAPI.getAll()
+      ]);
+      setUpcomingSessions(sessRes.data.sessions.slice(0, 4));
+      setAttendanceStats(attRes.data.stats);
+      setCourses(coursesRes.data.courses);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3500);
+  };
+
+  const overallPercentage = attendanceStats.length > 0
+    ? Math.round(attendanceStats.reduce((s, c) => s + c.percentage, 0) / attendanceStats.length)
+    : 0;
+
+  const getPercentageColor = (pct) => {
+    if (pct >= 75) return 'var(--green)';
+    if (pct >= 50) return 'var(--yellow)';
+    return 'var(--red)';
+  };
+
+  if (loading) return (
+    <div className="page-wrapper">
+      <div className="page-loader"><div className="loading-spinner" /> Loading dashboard...</div>
+    </div>
+  );
+
+  return (
+    <div className="page-wrapper">
+      {toast && <div className="alert alert-success" style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, maxWidth: 320 }}>{toast}</div>}
+      {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} onSuccess={showToast} />}
+
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
+          <p className="page-subtitle">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowMarkModal(true)}>
+          ✅ Mark Attendance
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--accent-glow)', fontSize: 20 }}>📚</div>
+          <div>
+            <div className="stat-label">Enrolled Courses</div>
+            <div className="stat-value">{courses.length}</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--green-bg)', fontSize: 20 }}>🎯</div>
+          <div>
+            <div className="stat-label">Overall Attendance</div>
+            <div className="stat-value" style={{ color: getPercentageColor(overallPercentage) }}>
+              {overallPercentage}%
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--purple-bg)', fontSize: 20 }}>📅</div>
+          <div>
+            <div className="stat-label">Upcoming Sessions</div>
+            <div className="stat-value">{upcomingSessions.length}</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--yellow-bg)', fontSize: 20 }}>⚠️</div>
+          <div>
+            <div className="stat-label">Low Attendance</div>
+            <div className="stat-value" style={{ color: 'var(--yellow)' }}>
+              {attendanceStats.filter(s => s.percentage < 75).length}
+            </div>
+            <div className="stat-sub">courses below 75%</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="content-grid">
+        {/* Upcoming Sessions */}
+        <div className="card">
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
+            📅 Upcoming Sessions
+          </h2>
+          {upcomingSessions.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">🎉</div>
+              <div className="empty-state-title">All caught up!</div>
+              <div className="empty-state-desc">No upcoming sessions scheduled.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {upcomingSessions.map(session => (
+                <div key={session._id} style={{
+                  padding: '14px 16px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+                      {session.title || session.topic || 'Class Session'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                      {session.course?.code} • {format(new Date(session.date), 'MMM d')} at {session.startTime}
+                    </div>
+                  </div>
+                  <div>
+                    {session.status === 'active'
+                      ? <span className="badge badge-green">● Live</span>
+                      : <span className="badge badge-gray">{formatDistanceToNow(new Date(session.date), { addSuffix: true })}</span>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Course Attendance */}
+        <div className="card">
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
+            📊 Attendance by Course
+          </h2>
+          {attendanceStats.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📋</div>
+              <div className="empty-state-title">No records yet</div>
+              <div className="empty-state-desc">Attendance records will appear here.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {attendanceStats.map((stat, i) => (
+                <div key={i}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {stat.course?.title}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
+                        {stat.attended}/{stat.total}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: getPercentageColor(stat.percentage) }}>
+                      {stat.percentage}%
+                    </span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className={`progress-fill ${stat.percentage >= 75 ? 'high' : stat.percentage >= 50 ? 'medium' : 'low'}`}
+                      style={{ width: `${stat.percentage}%` }}
+                    />
+                  </div>
+                  {stat.percentage < 75 && (
+                    <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>
+                      ⚠️ Below 75% threshold
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
 }
