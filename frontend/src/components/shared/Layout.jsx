@@ -1,25 +1,42 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { sessionsAPI } from '../../utils/api';
 
-const studentNav = [
-  { to: '/student', label: 'Dashboard', icon: '⊞', end: true },
-  { to: '/student/sessions', label: 'Sessions', icon: '📅' },
-  { to: '/student/courses', label: 'My Courses', icon: '📚' },
-  { to: '/student/attendance', label: 'Attendance', icon: '✅' },
-];
-
-const instructorNav = [
-  { to: '/instructor', label: 'Dashboard', icon: '⊞', end: true },
-  { to: '/instructor/sessions', label: 'Sessions', icon: '📅' },
-  { to: '/instructor/courses', label: 'Courses', icon: '📚' },
-  { to: '/instructor/attendance', label: 'Attendance', icon: '✅' },
-  { to: '/instructor/analytics', label: 'Analytics', icon: '📊' },
-];
+const buildNav = (role) =>
+  role === 'instructor'
+    ? [
+        { to: '/instructor', label: 'Dashboard', icon: '⊞', end: true },
+        { to: '/instructor/sessions', label: 'Sessions', icon: '📅', isSession: true },
+        { to: '/instructor/courses', label: 'Courses', icon: '📚' },
+        { to: '/instructor/attendance', label: 'Attendance', icon: '✅' },
+        { to: '/instructor/analytics', label: 'Analytics', icon: '📊' },
+      ]
+    : [
+        { to: '/student', label: 'Dashboard', icon: '⊞', end: true },
+        { to: '/student/sessions', label: 'Sessions', icon: '📅', isSession: true },
+        { to: '/student/courses', label: 'My Courses', icon: '📚' },
+        { to: '/student/attendance', label: 'Attendance', icon: '✅' },
+      ];
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const navItems = user?.role === 'instructor' ? instructorNav : studentNav;
+  const navItems = buildNav(user?.role);
+  const [hasLive, setHasLive] = useState(false);
+
+  // Poll for live sessions every 15s to show the pulsing dot
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await sessionsAPI.getAll({ status: 'active' });
+        setHasLive(res.data.sessions.some(s => s.liveSessionActive));
+      } catch {}
+    };
+    check();
+    const interval = setInterval(check, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
@@ -47,6 +64,9 @@ export default function Layout() {
             >
               <span className="nav-icon">{item.icon}</span>
               {item.label}
+              {item.isSession && hasLive && (
+                <span className="nav-live-dot" title="A live session is active!" />
+              )}
             </NavLink>
           ))}
         </nav>

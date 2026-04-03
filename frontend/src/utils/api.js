@@ -1,4 +1,12 @@
 import axios from 'axios';
+import { io } from 'socket.io-client';
+
+// Socket.io connection for live video sessions
+export const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+  autoConnect: false,
+  transports: ['websocket', 'polling']
+});
+
 
 const api = axios.create({
   baseURL: '/api',
@@ -53,7 +61,11 @@ export const sessionsAPI = {
   delete: (id) => api.delete(`/sessions/${id}`),
   activate: (id, durationMinutes) => api.patch(`/sessions/${id}/activate`, { durationMinutes }),
   close: (id) => api.patch(`/sessions/${id}/close`),
-  regenCode: (id) => api.patch(`/sessions/${id}/regen-code`)
+  regenCode: (id) => api.patch(`/sessions/${id}/regen-code`),
+  startLive: (id) => api.patch(`/sessions/${id}/start-live`),
+  endLive: (id) => api.patch(`/sessions/${id}/end-live`),
+  joinLive: (id) => api.post(`/sessions/${id}/join-live`),
+  markLiveAttendance: (id) => api.post(`/sessions/${id}/mark-live-attendance`)
 };
 
 // ── Attendance ──────────────────────────────────────────────

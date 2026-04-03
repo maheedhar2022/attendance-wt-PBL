@@ -29,7 +29,7 @@ const attendanceSchema = new mongoose.Schema(
     // How the student marked attendance
     markedVia: {
       type: String,
-      enum: ['code', 'manual', 'button'],
+      enum: ['code', 'manual', 'button', 'live'],
       default: 'code'
     },
     // Time the student marked attendance

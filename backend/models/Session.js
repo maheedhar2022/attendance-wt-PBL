@@ -57,6 +57,19 @@ const sessionSchema = new mongoose.Schema(
     notes: {
       type: String,
       trim: true
+    },
+    // Live video session fields
+    liveSessionActive: {
+      type: Boolean,
+      default: false
+    },
+    liveRoomId: {
+      type: String,
+      default: null
+    },
+    liveStartedAt: {
+      type: Date,
+      default: null
     }
   },
   {

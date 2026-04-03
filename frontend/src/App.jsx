@@ -7,6 +7,7 @@ import SessionsPage from './pages/SessionsPage';
 import CoursesPage from './pages/CoursesPage';
 import AttendancePage from './pages/AttendancePage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import LiveSessionPage from './pages/LiveSessionPage';
 import Layout from './components/shared/Layout';
 
 function ProtectedRoute({ children, allowedRole }) {
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route path="courses" element={<CoursesPage />} />
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="sessions" element={<SessionsPage />} />
+        <Route path="live/:sessionId" element={<LiveSessionPage />} />
       </Route>
 
       {/* Instructor routes */}
@@ -41,6 +43,7 @@ function AppRoutes() {
         <Route path="sessions" element={<SessionsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="attendance" element={<AttendancePage />} />
+        <Route path="live/:sessionId" element={<LiveSessionPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />

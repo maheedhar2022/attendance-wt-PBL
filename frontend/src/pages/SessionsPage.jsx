@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { sessionsAPI, coursesAPI } from '../utils/api';
 import { format } from 'date-fns';
@@ -167,6 +168,7 @@ function AttendanceCodeModal({ session, onClose, onRegenerate }) {
 
 export default function SessionsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isInstructor = user?.role === 'instructor';
   const [sessions, setSessions] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -176,6 +178,7 @@ export default function SessionsPage() {
   const [codeModal, setCodeModal] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState('');
+  const [startingLive, setStartingLive] = useState(null);
 
   useEffect(() => { loadData(); }, [filterStatus]);
 
@@ -208,12 +211,19 @@ export default function SessionsPage() {
     }
   };
 
+  const handleGoLive = (session) => {
+    const base = isInstructor ? '/instructor' : '/student';
+    navigate(`${base}/live/${session._id}`);
+  };
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const statusBadge = (status) => {
     const map = { active: 'badge-green', scheduled: 'badge-blue', closed: 'badge-gray', cancelled: 'badge-red' };
     return <span className={`badge ${map[status] || 'badge-gray'}`}>{status === 'active' ? '● ' : ''}{status}</span>;
   };
+
+  const hasLiveSessions = sessions.some(s => s.liveSessionActive);
 
   return (
     <div className="page-wrapper">
@@ -223,7 +233,14 @@ export default function SessionsPage() {
 
       <div className="page-header">
         <div>
-          <h1 className="page-title">Sessions</h1>
+          <h1 className="page-title">
+            Sessions
+            {hasLiveSessions && (
+              <span className="live-indicator-pill" style={{ marginLeft: 12 }}>
+                🔴 Live Now
+              </span>
+            )}
+          </h1>
           <p className="page-subtitle">{isInstructor ? 'Manage your class sessions' : 'Your scheduled class sessions'}</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -252,7 +269,15 @@ export default function SessionsPage() {
       ) : (
         <div className="sessions-grid">
           {sessions.map(session => (
-            <div key={session._id} className={`session-card ${session.status === 'active' ? 'active-session' : ''}`}>
+            <div key={session._id} className={`session-card ${session.status === 'active' ? 'active-session' : ''} ${session.liveSessionActive ? 'live-session-card' : ''}`}>
+              {/* Live pulse banner */}
+              {session.liveSessionActive && (
+                <div className="live-card-banner">
+                  <span className="pulse-dot" />
+                  <span>Live in progress</span>
+                </div>
+              )}
+
               <div className="session-meta">
                 {statusBadge(session.status)}
                 <span className="session-course">{session.course?.code}</span>
@@ -265,12 +290,35 @@ export default function SessionsPage() {
                 📅 {format(new Date(session.date), 'EEEE, MMM d yyyy')}
                 <br />⏰ {session.startTime} – {session.endTime}
               </div>
-              {session.status === 'active' && (
+
+              {session.status === 'active' && !session.liveSessionActive && (
                 <div className="code-display" style={{ padding: '12px 16px' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>ATTENDANCE CODE</div>
                   <div className="code-value" style={{ fontSize: 28, letterSpacing: 6 }}>{session.attendanceCode}</div>
                 </div>
               )}
+
+              {/* Live / Join Live button */}
+              <div className="session-live-action">
+                {isInstructor ? (
+                  session.liveSessionActive ? (
+                    <button className="btn btn-sm live-rejoin-btn" onClick={() => handleGoLive(session)}>
+                      🔴 Manage Live Session
+                    </button>
+                  ) : (
+                    <button className="btn btn-sm go-live-btn" onClick={() => handleGoLive(session)}>
+                      🎥 Go Live
+                    </button>
+                  )
+                ) : (
+                  session.liveSessionActive && (
+                    <button className="btn btn-sm join-live-btn" onClick={() => handleGoLive(session)}>
+                      🎥 Join Live
+                    </button>
+                  )
+                )}
+              </div>
+
               {isInstructor && (
                 <div className="session-actions">
                   <button className="btn btn-sm btn-secondary" onClick={() => setCodeModal(session)}>🔑 Code</button>
