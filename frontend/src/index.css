@@ -1,46 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ── Design System (Classic Blue & White Light Theme) ──────────── */
+/* ── Design System (Premium Zoom Dark Mode) ──────────── */
 :root {
-  --bg-color: #f4f7fa; /* Clean light gray/blue canvas */
-  --bg: radial-gradient(circle at 15% 50%, rgba(45, 140, 255, 0.08), transparent 40%),
-        radial-gradient(circle at 85% 30%, rgba(167, 139, 250, 0.05), transparent 40%),
-        #f4f7fa;
+  --bg-color: #0b0c10; /* Deep clean Zoom slate */
+  --bg: radial-gradient(circle at 50% 0%, rgba(45, 140, 255, 0.04), transparent 50%),
+        #0b0c10;
   
-  /* Glass container tokens */
-  --bg-card: rgba(255, 255, 255, 0.95);
-  --bg-elevated: rgba(255, 255, 255, 1);
-  --bg-hover: rgba(240, 245, 255, 0.8);
+  /* Solid container tokens (No excessive glass) */
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-elevated: rgba(255, 255, 255, 0.08);
+  --bg-hover: rgba(255, 255, 255, 0.12);
   
-  --border: rgba(0, 0, 0, 0.06); 
-  --border-light: rgba(0, 0, 0, 0.04);
-  --border-highlight: rgba(255, 255, 255, 1);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-light: rgba(255, 255, 255, 0.05);
+  --border-highlight: rgba(255, 255, 255, 0.15);
 
-  --accent: #2563eb; /* Classic clean blue */
-  --accent-glow: rgba(37, 99, 235, 0.15);
-  --accent-hover: #1d4ed8;
+  --accent: #2D8CFF; /* Official Zoom Blue */
+  --accent-glow: transparent; /* Removed AI glowing effects */
+  --accent-hover: #4096ff;
   
-  --green: #10b981;
-  --green-bg: rgba(16, 185, 129, 0.1);
+  /* Vibrant but clean solid status colors */
+  --green: #22c55e;
+  --green-bg: rgba(34, 197, 94, 0.15);
   --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.1);
+  --red-bg: rgba(239, 68, 68, 0.15);
   --yellow: #f59e0b;
-  --yellow-bg: rgba(245, 158, 11, 0.1);
+  --yellow-bg: rgba(245, 158, 11, 0.15);
   --purple: #8b5cf6;
-  --purple-bg: rgba(139, 92, 246, 0.1);
+  --purple-bg: rgba(139, 92, 246, 0.15);
 
-  --text-primary: #0f172a; /* Deep slate for high contrast */
-  --text-secondary: #475569; /* Slate gray for secondary text */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
   --text-muted: #64748b;
 
-  --font-display: 'Outfit', sans-serif;
+  --font-display: 'Inter', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  --radius: 16px;
-  --radius-sm: 10px;
-  --radius-lg: 24px;
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.04); 
-  --glass-blur: blur(20px);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+  --glass-blur: blur(0px); /* Removed heavy glassmorphism for a crisp real-app feel */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
