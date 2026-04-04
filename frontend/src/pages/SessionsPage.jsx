@@ -88,83 +88,6 @@ function SessionModal({ session, courses, onClose, onSave }) {
   );
 }
 
-function AttendanceCodeModal({ session, onClose, onRegenerate }) {
-  const [loading, setLoading] = useState(false);
-  const [code, setCode] = useState(session.attendanceCode);
-  const [duration, setDuration] = useState(90);
-  const [activating, setActivating] = useState(false);
-
-  const handleActivate = async () => {
-    setActivating(true);
-    try {
-      const res = await sessionsAPI.activate(session._id, duration);
-      setCode(res.data.session.attendanceCode);
-      onRegenerate?.();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActivating(false);
-    }
-  };
-
-  const handleRegen = async () => {
-    setLoading(true);
-    try {
-      const res = await sessionsAPI.regenCode(session._id);
-      setCode(res.data.attendanceCode);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-header">
-          <h2 className="modal-title">📋 Attendance Code</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
-        </div>
-        <div style={{ marginBottom: 16, color: 'var(--text-muted)', fontSize: 14 }}>
-          <strong style={{ color: 'var(--text-primary)' }}>{session.title || session.topic}</strong>
-          <br />{session.course?.title || ''} · {format(new Date(session.date), 'MMM d, yyyy')}
-        </div>
-
-        <div className="code-display" style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Session Code</div>
-          <div className="code-value">{code}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Share this with your students</div>
-        </div>
-
-        {session.status !== 'active' && (
-          <div style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">Duration (minutes)</label>
-              <input type="number" className="form-input" value={duration} onChange={e => setDuration(e.target.value)} min={5} max={300} />
-            </div>
-            <div style={{ paddingTop: 22 }}>
-              <button className="btn btn-success" onClick={handleActivate} disabled={activating}>
-                {activating ? <span className="loading-spinner" /> : '▶ Activate'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" onClick={handleRegen} disabled={loading}>
-            {loading ? <span className="loading-spinner" /> : '🔄 New Code'}
-          </button>
-          {session.status === 'active' && (
-            <button className="btn btn-danger" onClick={async () => { await sessionsAPI.close(session._id); onRegenerate?.(); onClose(); }}>
-              ⏹ Close Session
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function SessionsPage() {
   const { user } = useAuth();
@@ -175,7 +98,6 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editSession, setEditSession] = useState(null);
-  const [codeModal, setCodeModal] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState('');
   const [startingLive, setStartingLive] = useState(null);
@@ -229,7 +151,6 @@ export default function SessionsPage() {
     <div className="page-wrapper">
       {toast && <div className="alert alert-success" style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, maxWidth: 340 }}>{toast}</div>}
       {showModal && <SessionModal courses={courses} onClose={() => { setShowModal(false); setEditSession(null); }} onSave={() => { loadData(); showToast('Session saved!'); }} session={editSession} />}
-      {codeModal && <AttendanceCodeModal session={codeModal} onClose={() => setCodeModal(null)} onRegenerate={loadData} />}
 
       <div className="page-header">
         <div>
@@ -291,13 +212,6 @@ export default function SessionsPage() {
                 <br />⏰ {session.startTime} – {session.endTime}
               </div>
 
-              {session.status === 'active' && !session.liveSessionActive && (
-                <div className="code-display" style={{ padding: '12px 16px' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>ATTENDANCE CODE</div>
-                  <div className="code-value" style={{ fontSize: 28, letterSpacing: 6 }}>{session.attendanceCode}</div>
-                </div>
-              )}
-
               {/* Live / Join Live button */}
               <div className="session-live-action">
                 {isInstructor ? (
@@ -321,7 +235,6 @@ export default function SessionsPage() {
 
               {isInstructor && (
                 <div className="session-actions">
-                  <button className="btn btn-sm btn-secondary" onClick={() => setCodeModal(session)}>🔑 Code</button>
                   <button className="btn btn-sm btn-secondary" onClick={() => { setEditSession({ _id: session._id, courseId: session.course?._id, title: session.title || '', topic: session.topic || '', date: session.date ? session.date.split('T')[0] : '', startTime: session.startTime || '', endTime: session.endTime || '', notes: session.notes || '' }); setShowModal(true); }}>✏️ Edit</button>
                   <button className="btn btn-sm btn-danger" onClick={() => handleDelete(session._id)}>🗑</button>
                 </div>

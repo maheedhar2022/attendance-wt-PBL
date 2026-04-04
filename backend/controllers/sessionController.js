@@ -318,9 +318,12 @@ const startLiveSession = async (req, res) => {
  */
 const endLiveSession = async (req, res) => {
   try {
+    // Only clear live-video fields — do NOT change status to 'closed'.
+    // The server-side scheduler (autoUpdateSessionStatuses) will close
+    // the session automatically when the scheduled endTime (IST) passes.
     const session = await Session.findOneAndUpdate(
       { _id: req.params.id, instructor: req.user._id },
-      { liveSessionActive: false, liveRoomId: null, status: 'closed' },
+      { liveSessionActive: false, liveRoomId: null },
       { new: true }
     );
 
@@ -328,7 +331,7 @@ const endLiveSession = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
-    res.json({ success: true, session, message: 'Live session ended.' });
+    res.json({ success: true, session, message: 'Live video ended. Session remains active until its scheduled end time.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -484,34 +487,47 @@ const markLiveAttendance = async (req, res) => {
 };
 
 /**
- * Auto-close sessions whose scheduled end time (IST) has passed.
- * Call this on a timer from server.js.
+ * Auto-update session statuses based on scheduled IST start/end times.
+ * - scheduled → active  when currentTime >= startTime IST
+ * - active    → closed  when currentTime >= endTime  IST
+ * Call this on a timer from server.js (every 60 seconds).
  */
-const autoCloseExpiredSessions = async () => {
+const autoUpdateSessionStatuses = async () => {
   try {
     const now = nowIST();
-    // Find all active/scheduled sessions
-    const activeSessions = await Session.find({ status: { $in: ['active', 'scheduled'] } });
+    // Only look at sessions that are not yet closed/cancelled
+    const openSessions = await Session.find({ status: { $in: ['scheduled', 'active'] } });
 
-    for (const session of activeSessions) {
-      const scheduledEnd = buildISTDateTime(session.date, session.endTime);
+    for (const session of openSessions) {
+      const scheduledStart = buildISTDateTime(session.date, session.startTime);
+      const scheduledEnd   = buildISTDateTime(session.date, session.endTime);
+
       if (now >= scheduledEnd) {
+        // Past end time → close it and stop any live video
         session.status = 'closed';
         session.liveSessionActive = false;
         session.liveRoomId = null;
         await session.save();
-        console.log(`⏰ Auto-closed session "${session.title || session.topic || session._id}" at ${session.endTime} IST`);
+        console.log(`⏰ Auto-closed: "${session.title || session.topic || session._id}" (end: ${session.endTime} IST)`);
+      } else if (now >= scheduledStart && session.status === 'scheduled') {
+        // Within time window → activate it
+        session.status = 'active';
+        await session.save();
+        console.log(`▶️  Auto-activated: "${session.title || session.topic || session._id}" (start: ${session.startTime} IST)`);
       }
     }
   } catch (err) {
-    console.error('Auto-close error:', err.message);
+    console.error('Auto-status update error:', err.message);
   }
 };
+
+// Keep old export name as alias so server.js import doesn't break
+const autoCloseExpiredSessions = autoUpdateSessionStatuses;
 
 module.exports = {
   createSession, getSessions, getSession, updateSession,
   deleteSession, activateSession, closeSession, regenCode,
   startLiveSession, endLiveSession, joinLiveSession, markLiveAttendance,
-  autoCloseExpiredSessions
+  autoCloseExpiredSessions, autoUpdateSessionStatuses
 };
 

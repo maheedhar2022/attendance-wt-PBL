@@ -8,7 +8,7 @@ const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
 
-router.post('/mark', authorize('student'), markAttendance);
+// Code-based attendance marking removed — attendance is via live session only or instructor manual entry
 router.get('/my', authorize('student'), getMyAttendance);
 router.get('/session/:sessionId', authorize('instructor'), getSessionAttendance);
 router.put('/:id', authorize('instructor'), updateAttendance);

@@ -87,7 +87,7 @@ function StudentAttendance() {
           <div className="empty-state">
             <div className="empty-state-icon">📋</div>
             <div className="empty-state-title">No records yet</div>
-            <div className="empty-state-desc">Mark attendance when your instructor opens a session.</div>
+            <div className="empty-state-desc">Attendance is recorded automatically when you attend a live session for the required duration, or when your instructor marks it manually.</div>
           </div>
         ) : (
           <div className="table-wrapper" style={{ borderRadius: 0, border: 'none' }}>
