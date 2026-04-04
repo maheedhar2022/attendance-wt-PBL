@@ -11,6 +11,7 @@ const courseRoutes = require('./routes/courses');
 const sessionRoutes = require('./routes/sessions');
 const attendanceRoutes = require('./routes/attendance');
 const userRoutes = require('./routes/users');
+const { autoCloseExpiredSessions } = require('./controllers/sessionController');
 
 const app = express();
 const server = http.createServer(app);
@@ -142,6 +143,13 @@ mongoose
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📡 Socket.io live session signalling active`);
     });
+
+    // ── Auto-close sessions at their scheduled IST end time ──────
+    // Runs every 60 seconds; closes sessions whose endTime (IST) has passed
+    setInterval(async () => {
+      await autoCloseExpiredSessions();
+    }, 60 * 1000);
+    console.log('⏰ Session auto-close scheduler running (checks every 60s)');
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message);

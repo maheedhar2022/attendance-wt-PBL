@@ -98,9 +98,29 @@ export default function LiveSessionPage() {
   // Session ended banner
   const [sessionEnded, setSessionEnded] = useState(false);
 
+  // ── Scheduled time enforcement (IST) ─────────────────────────
+  // Countdown to session start
+  const [timeToStart, setTimeToStart] = useState(null);       // seconds until startTime
+  const [canStartNow, setCanStartNow] = useState(false);      // within allowed window
+  const [sessionExpired, setSessionExpired] = useState(false); // past endTime
+  const timeCheckRef = useRef(null);
+  const autoEndTimerRef = useRef(null);
+
   const localStreamRef = useRef(null);
   const peerConnectionsRef = useRef({}); // { socketId: RTCPeerConnection }
   const roomId = useRef('');
+
+  // ── Build IST Date from session date + "HH:MM" string ────────
+  const buildISTDateTime = (sessionDate, timeStr) => {
+    if (!sessionDate || !timeStr) return null;
+    const d = new Date(sessionDate);
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(d.getTime() + istOffset);
+    const yyyy = istDate.getUTCFullYear();
+    const mm = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(istDate.getUTCDate()).padStart(2, '0');
+    return new Date(`${yyyy}-${mm}-${dd}T${timeStr}:00+05:30`);
+  };
 
   // ── Load session info ─────────────────────────────────────
   useEffect(() => {
@@ -119,6 +139,69 @@ export default function LiveSessionPage() {
     }
   };
 
+  // ── Time-window enforcement for instructor ────────────────
+  // Re-runs every 15 seconds to keep countdown live
+  useEffect(() => {
+    if (!session || !isInstructor) return;
+
+    const check = () => {
+      const start = buildISTDateTime(session.date, session.startTime);
+      const end   = buildISTDateTime(session.date, session.endTime);
+      if (!start || !end) return;
+
+      const now = new Date();
+      const tenMinBefore = new Date(start.getTime() - 10 * 60 * 1000);
+
+      if (now > end) {
+        setSessionExpired(true);
+        setCanStartNow(false);
+        setTimeToStart(null);
+      } else if (now >= tenMinBefore) {
+        setCanStartNow(true);
+        setSessionExpired(false);
+        setTimeToStart(null);
+      } else {
+        const secsUntil = Math.ceil((tenMinBefore - now) / 1000);
+        setCanStartNow(false);
+        setSessionExpired(false);
+        setTimeToStart(secsUntil);
+      }
+    };
+
+    check(); // run immediately
+    timeCheckRef.current = setInterval(check, 15000);
+    return () => clearInterval(timeCheckRef.current);
+  }, [session, isInstructor]);
+
+  // ── Auto-end client-side at scheduled endTime ─────────────
+  useEffect(() => {
+    if (!session || !inRoom) return;
+
+    const end = buildISTDateTime(session.date, session.endTime);
+    if (!end) return;
+
+    const msUntilEnd = end.getTime() - Date.now();
+    if (msUntilEnd <= 0) return; // already past
+
+    autoEndTimerRef.current = setTimeout(async () => {
+      if (isInstructor) {
+        // Instructor: auto end the session
+        try {
+          socket.emit('end-live-session', { roomId: roomId.current });
+          await sessionsAPI.endLive(sessionId);
+        } catch (e) { /* ignore */ }
+        cleanup();
+        navigate(-1);
+      } else {
+        // Student: session window closed — show ended screen
+        setSessionEnded(true);
+        setTimeout(() => navigate(-1), 4000);
+      }
+    }, msUntilEnd);
+
+    return () => clearTimeout(autoEndTimerRef.current);
+  }, [session, inRoom]);
+
   // ── Cleanup on unmount ───────────────────────────────────
   const cleanup = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
@@ -127,6 +210,8 @@ export default function LiveSessionPage() {
     // Clear deferred attendance timer
     if (attendanceTimerRef.current) clearTimeout(attendanceTimerRef.current);
     if (attendanceCountdownRef.current) clearInterval(attendanceCountdownRef.current);
+    if (timeCheckRef.current) clearInterval(timeCheckRef.current);
+    if (autoEndTimerRef.current) clearTimeout(autoEndTimerRef.current);
     socket.off('room-participants');
     socket.off('peer-joined');
     socket.off('peer-left');
@@ -390,7 +475,15 @@ export default function LiveSessionPage() {
 
   // ── Instructor: Start Live ───────────────────────────────
   const handleStartLive = async () => {
+    if (!canStartNow && !session?.liveSessionActive) {
+      // Show a clear message — backend will reject anyway, but catch early
+      const start = buildISTDateTime(session.date, session.startTime);
+      const mins = timeToStart !== null ? Math.ceil(timeToStart / 60) : '?';
+      setError(`Cannot start yet. Session begins at ${session.startTime} IST. You can start up to 10 minutes early. (~${mins} min remaining)`);
+      return;
+    }
     setJoining(true);
+    setError('');
     try {
       const res = await sessionsAPI.startLive(sessionId);
       setSession(res.data.session);
@@ -479,6 +572,12 @@ export default function LiveSessionPage() {
   if (!inRoom) {
     // Lobby / waiting room
     const isLive = session?.liveSessionActive;
+
+    // Friendly countdown string for instructor
+    const countdownStr = timeToStart !== null
+      ? `${Math.floor(timeToStart / 3600) > 0 ? Math.floor(timeToStart / 3600) + 'h ' : ''}${Math.floor((timeToStart % 3600) / 60)}m ${timeToStart % 60}s`
+      : null;
+
     return (
       <div className="live-lobbywrap">
         <div className="live-lobby">
@@ -487,8 +586,50 @@ export default function LiveSessionPage() {
             <div className="live-badge-pill pulse-red">🔴 LIVE</div>
             <h1 className="lobby-title">{session?.title || session?.topic || 'Live Class Session'}</h1>
             <p className="lobby-course">{session?.course?.title} · {session?.course?.code}</p>
-            <p className="lobby-time">{session?.startTime} – {session?.endTime}</p>
+            <p className="lobby-time">{session?.startTime} – {session?.endTime} IST</p>
           </div>
+
+          {/* Session expired notice */}
+          {sessionExpired && (
+            <div className="alert alert-error" style={{ marginBottom: 16 }}>
+              ⏱️ This session has ended (past scheduled end time of {session?.endTime} IST).
+            </div>
+          )}
+
+          {/* Instructor: countdown to start window */}
+          {isInstructor && !isLive && !sessionExpired && timeToStart !== null && (
+            <div style={{
+              background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)',
+              borderRadius: 12, padding: '14px 20px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 12
+            }}>
+              <span style={{ fontSize: 28 }}>⏳</span>
+              <div>
+                <strong style={{ color: 'var(--text-primary)' }}>Session hasn't started yet</strong>
+                <p style={{ color: 'var(--text-muted)', margin: '4px 0 0', fontSize: 14 }}>
+                  Scheduled: <strong>{session?.startTime} IST</strong>. You can start it 10 minutes before.<br />
+                  <span style={{ fontSize: 16, color: 'var(--accent)', fontWeight: 700 }}>⏱ {countdownStr} until early-start allowed</span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Student: not live yet info */}
+          {!isInstructor && !isLive && !sessionExpired && (
+            <div style={{
+              background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.2)',
+              borderRadius: 12, padding: '14px 20px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 12
+            }}>
+              <span style={{ fontSize: 28 }}>⏰</span>
+              <div>
+                <strong style={{ color: 'var(--text-primary)' }}>Waiting for instructor</strong>
+                <p style={{ color: 'var(--text-muted)', margin: '4px 0 0', fontSize: 14 }}>
+                  Session is scheduled for <strong>{session?.startTime} – {session?.endTime} IST</strong>.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Attendance status for student */}
           {attendancePending && !attendanceConfirmed && (
@@ -525,8 +666,21 @@ export default function LiveSessionPage() {
                   {joining ? <span className="loading-spinner" /> : '🎥 Rejoin Your Session'}
                 </button>
               ) : (
-                <button className="btn btn-lg live-btn" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff' }} onClick={handleStartLive} disabled={joining}>
-                  {joining ? <span className="loading-spinner" /> : '🔴 Start Live Session'}
+                <button
+                  className="btn btn-lg live-btn"
+                  style={{
+                    background: (!canStartNow || sessionExpired)
+                      ? 'rgba(239,68,68,0.3)'
+                      : 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: '#fff',
+                    cursor: (!canStartNow || sessionExpired) ? 'not-allowed' : 'pointer',
+                    opacity: (!canStartNow || sessionExpired) ? 0.6 : 1
+                  }}
+                  onClick={handleStartLive}
+                  disabled={joining || sessionExpired}
+                  title={!canStartNow && !sessionExpired ? `Available from ${session?.startTime} IST (10 min early allowed)` : ''}
+                >
+                  {joining ? <span className="loading-spinner" /> : sessionExpired ? '⛔ Session Ended' : (!canStartNow ? `🔒 Starts at ${session?.startTime} IST` : '🔴 Start Live Session')}
                 </button>
               )
             ) : (

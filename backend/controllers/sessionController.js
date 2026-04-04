@@ -4,6 +4,34 @@ const Attendance = require('../models/Attendance');
 const { v4: uuidv4 } = require('uuid');
 
 /**
+ * Build a full UTC Date from a session's stored date + HH:MM time string,
+ * treating the time as IST (UTC+5:30).
+ *
+ * session.date is stored as an ISO Date (midnight UTC or the date the user chose).
+ * We extract YYYY-MM-DD in IST, combine with "HH:MM", then parse as IST.
+ */
+function buildISTDateTime(sessionDate, timeStr) {
+  // sessionDate can be a Date object or ISO string
+  const d = new Date(sessionDate);
+  // Format as YYYY-MM-DD in IST by shifting by +5:30 (19800 seconds)
+  const istOffset = 5.5 * 60 * 60 * 1000; // 19800000 ms
+  const istDate = new Date(d.getTime() + istOffset);
+  const yyyy = istDate.getUTCFullYear();
+  const mm = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(istDate.getUTCDate()).padStart(2, '0');
+  const datePart = `${yyyy}-${mm}-${dd}`;
+  // Combine as "YYYY-MM-DDTHH:MM+05:30" and parse
+  return new Date(`${datePart}T${timeStr}:00+05:30`);
+}
+
+/**
+ * Get current IST time as a Date object (same as UTC Date but semantically IST)
+ */
+function nowIST() {
+  return new Date();
+}
+
+/**
  * @desc    Create a new session
  * @route   POST /api/sessions
  * @access  Private (Instructor)
@@ -156,15 +184,20 @@ const activateSession = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Session not found or not authorized.' });
     }
 
-    const { durationMinutes = 60 } = req.body;
-    const now = new Date();
-    const closesAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
+    // Use scheduled IST start/end times as the attendance window
+    const opensAt = buildISTDateTime(session.date, session.startTime);
+    const closesAt = buildISTDateTime(session.date, session.endTime);
+    const now = nowIST();
+
+    // Warn if session hasn't started yet but allow instructor to activate early
+    const effectiveOpens = now < opensAt ? opensAt : now;
 
     session.status = 'active';
-    session.attendanceWindow = { opensAt: now, closesAt };
+    session.attendanceWindow = { opensAt: effectiveOpens, closesAt };
     await session.save();
 
-    res.json({ success: true, session, message: `Attendance opened for ${durationMinutes} minutes.` });
+    const durationMinutes = Math.round((closesAt - effectiveOpens) / 60000);
+    res.json({ success: true, session, message: `Attendance opened. Window closes at scheduled end time (${session.endTime} IST).` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -226,24 +259,53 @@ const startLiveSession = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Session not found or not authorized.' });
     }
 
-    const liveRoomId = uuidv4();
-    const now = new Date();
+    const now = nowIST();
 
-    // Auto-activate attendance when going live (1-hour window)
-    if (session.status !== 'active') {
-      session.status = 'active';
-      session.attendanceWindow = {
-        opensAt: now,
-        closesAt: new Date(now.getTime() + 60 * 60 * 1000)
-      };
+    // Build scheduled start and end as full IST timestamps
+    const scheduledStart = buildISTDateTime(session.date, session.startTime);
+    const scheduledEnd   = buildISTDateTime(session.date, session.endTime);
+
+    // Reject if session end time has already passed
+    if (now > scheduledEnd) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot start session. The scheduled end time (${session.endTime} IST) has already passed.`
+      });
     }
+
+    // Reject if it's more than 10 minutes before the scheduled start time
+    const tenMinBefore = new Date(scheduledStart.getTime() - 10 * 60 * 1000);
+    if (now < tenMinBefore) {
+      const minutesLeft = Math.ceil((scheduledStart - now) / 60000);
+      return res.status(400).json({
+        success: false,
+        message: `Session starts at ${session.startTime} IST. You can start it up to 10 minutes early. ${minutesLeft} minute(s) remaining.`,
+        scheduledStartIST: scheduledStart.toISOString(),
+        minutesUntilStart: minutesLeft
+      });
+    }
+
+    const liveRoomId = uuidv4();
+
+    // Set attendance window to match session's actual scheduled duration
+    session.status = 'active';
+    session.attendanceWindow = {
+      opensAt: now,        // opens when instructor starts
+      closesAt: scheduledEnd  // closes exactly at scheduled end time
+    };
 
     session.liveSessionActive = true;
     session.liveRoomId = liveRoomId;
     session.liveStartedAt = now;
     await session.save();
 
-    res.json({ success: true, session, liveRoomId, message: 'Live session started.' });
+    res.json({
+      success: true,
+      session,
+      liveRoomId,
+      scheduledEndIST: scheduledEnd.toISOString(),
+      message: `Live session started. Will auto-close at ${session.endTime} IST.`
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -421,9 +483,35 @@ const markLiveAttendance = async (req, res) => {
   }
 };
 
+/**
+ * Auto-close sessions whose scheduled end time (IST) has passed.
+ * Call this on a timer from server.js.
+ */
+const autoCloseExpiredSessions = async () => {
+  try {
+    const now = nowIST();
+    // Find all active/scheduled sessions
+    const activeSessions = await Session.find({ status: { $in: ['active', 'scheduled'] } });
+
+    for (const session of activeSessions) {
+      const scheduledEnd = buildISTDateTime(session.date, session.endTime);
+      if (now >= scheduledEnd) {
+        session.status = 'closed';
+        session.liveSessionActive = false;
+        session.liveRoomId = null;
+        await session.save();
+        console.log(`⏰ Auto-closed session "${session.title || session.topic || session._id}" at ${session.endTime} IST`);
+      }
+    }
+  } catch (err) {
+    console.error('Auto-close error:', err.message);
+  }
+};
+
 module.exports = {
   createSession, getSessions, getSession, updateSession,
   deleteSession, activateSession, closeSession, regenCode,
-  startLiveSession, endLiveSession, joinLiveSession, markLiveAttendance
+  startLiveSession, endLiveSession, joinLiveSession, markLiveAttendance,
+  autoCloseExpiredSessions
 };
 
