@@ -87,14 +87,6 @@ export default function LiveSessionPage() {
   const [participants, setParticipants] = useState([]);
   const [participantCount, setParticipantCount] = useState(0);
 
-  // Attendance — deferred marking based on session duration threshold (5/6 of total)
-  const [attendanceConfirmed, setAttendanceConfirmed] = useState(false);
-  const [attendanceStatus, setAttendanceStatus] = useState('');
-  const [attendancePending, setAttendancePending] = useState(false);  // waiting for timer
-  const [attendanceCountdown, setAttendanceCountdown] = useState(0); // seconds remaining
-  const attendanceTimerRef = useRef(null);
-  const attendanceCountdownRef = useRef(null);
-
   // Session ended banner
   const [sessionEnded, setSessionEnded] = useState(false);
 
@@ -185,15 +177,14 @@ export default function LiveSessionPage() {
 
     autoEndTimerRef.current = setTimeout(async () => {
       if (isInstructor) {
-        // Instructor: auto end the session
         try {
-          socket.emit('end-live-session', { roomId: roomId.current });
+          // Pass sessionId so server marks attendance before ending
+          socket.emit('end-live-session', { roomId: roomId.current, sessionId });
           await sessionsAPI.endLive(sessionId);
         } catch (e) { /* ignore */ }
         cleanup();
         navigate(-1);
       } else {
-        // Student: session window closed — show ended screen
         setSessionEnded(true);
         setTimeout(() => navigate(-1), 4000);
       }
@@ -207,9 +198,6 @@ export default function LiveSessionPage() {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     Object.values(peerConnectionsRef.current).forEach(pc => pc.close());
     peerConnectionsRef.current = {};
-    // Clear deferred attendance timer
-    if (attendanceTimerRef.current) clearTimeout(attendanceTimerRef.current);
-    if (attendanceCountdownRef.current) clearInterval(attendanceCountdownRef.current);
     if (timeCheckRef.current) clearInterval(timeCheckRef.current);
     if (autoEndTimerRef.current) clearTimeout(autoEndTimerRef.current);
     socket.off('room-participants');
@@ -223,43 +211,6 @@ export default function LiveSessionPage() {
     socket.off('session-ended');
     socket.disconnect();
   }, []);
-
-  // ── Schedule deferred attendance marking ──────────────────
-  // Called after join. `markAfterMs` is when (relative to now) attendance
-  // should be recorded — calculated as (5/6 × session duration) from live start.
-  const scheduleAttendanceMark = useCallback((markAfterMs) => {
-    const totalSeconds = Math.ceil(markAfterMs / 1000);
-    setAttendancePending(true);
-    setAttendanceCountdown(totalSeconds);
-
-    // Live countdown display
-    attendanceCountdownRef.current = setInterval(() => {
-      setAttendanceCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(attendanceCountdownRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    // Actual mark call after delay
-    attendanceTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await sessionsAPI.markLiveAttendance(sessionId);
-        setAttendancePending(false);
-        setAttendanceConfirmed(true);
-        setAttendanceStatus(res.data.status);
-      } catch (err) {
-        // Already marked or session ended — still confirm UI
-        setAttendancePending(false);
-        setAttendanceConfirmed(true);
-        setAttendanceStatus('present');
-        console.warn('Attendance mark error (possibly already marked):', err.message);
-      }
-    }, markAfterMs);
-  }, [sessionId]);
-
 
   // ── Get user media ───────────────────────────────────────
   const getUserMedia = async () => {
@@ -428,19 +379,9 @@ export default function LiveSessionPage() {
     setError('');
     try {
       if (!isInstructor) {
-        // joinLive now returns markAfterMs (deferred attendance) instead of
-        // marking immediately. Attendance is marked after (5/6 × duration).
+        // Get the room ID. Attendance is now tracked server-side via socket presence time.
         const res = await sessionsAPI.joinLive(sessionId);
         roomId.current = res.data.liveRoomId;
-
-        if (res.data.canMark) {
-          // Student joined before the attendance threshold — schedule timer
-          scheduleAttendanceMark(res.data.markAfterMs);
-        } else {
-          // Joined too late (past threshold) — backend will have marked immediately
-          setAttendanceConfirmed(true);
-          setAttendanceStatus(res.data.attendanceStatus || 'late');
-        }
       } else {
         roomId.current = session.liveRoomId;
       }
@@ -498,7 +439,8 @@ export default function LiveSessionPage() {
   const handleEndLive = async () => {
     if (!confirm('End the live session for everyone?')) return;
     try {
-      socket.emit('end-live-session', { roomId: roomId.current });
+      // Pass sessionId so server can mark attendance before ending
+      socket.emit('end-live-session', { roomId: roomId.current, sessionId });
       await sessionsAPI.endLive(sessionId);
       cleanup();
       navigate(-1);
@@ -631,27 +573,18 @@ export default function LiveSessionPage() {
             </div>
           )}
 
-          {/* Attendance status for student */}
-          {attendancePending && !attendanceConfirmed && (
-            <div className="attendance-pending-banner">
-              <div>
-                <div className="countdown-value">
-                  {Math.floor(attendanceCountdown / 60)}:{String(attendanceCountdown % 60).padStart(2, '0')}
-                </div>
-              </div>
-              <div>
-                <strong>⏳ Attendance will be recorded...</strong>
-                <p>Stay in the session. Your attendance is auto-marked at {Math.round(attendanceCountdown / 60)} minute{attendanceCountdown >= 120 ? 's' : ''} remaining.</p>
-              </div>
-            </div>
-          )}
-          {attendanceConfirmed && (
-            <div className="attendance-confirmed-banner">
-              <span className="confirmed-icon">✅</span>
-              <div>
-                <strong>Attendance Recorded!</strong>
-                <p>Status: <span style={{ color: attendanceStatus === 'present' ? 'var(--green)' : 'var(--yellow)', fontWeight: 700, textTransform: 'capitalize' }}>{attendanceStatus}</span></p>
-              </div>
+          {/* Attendance info notice for student */}
+          {!isInstructor && isLive && (
+            <div style={{
+              background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)',
+              borderRadius: 12, padding: '12px 18px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 12
+            }}>
+              <span style={{ fontSize: 22 }}>📊</span>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+                Attendance is <strong style={{ color: 'var(--text-primary)' }}>tracked automatically</strong> by how long you stay in the session.
+                You need to be present for at least <strong>5/6 of the total session duration</strong> to be marked present.
+              </p>
             </div>
           )}
 
@@ -724,14 +657,9 @@ export default function LiveSessionPage() {
           <span className="participant-count-badge">
             👥 {participantCount || allParticipants.length}
           </span>
-          {attendancePending && !attendanceConfirmed && (
-            <span className="attendance-countdown-badge">
-              ⏱ Attendance in {Math.floor(attendanceCountdown / 60)}:{String(attendanceCountdown % 60).padStart(2, '0')}
-            </span>
-          )}
-          {attendanceConfirmed && (
-            <span className="attendance-mini-badge">
-              ✅ Attendance Recorded
+          {!isInstructor && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: 20 }}>
+              📊 Attendance tracked by presence
             </span>
           )}
         </div>

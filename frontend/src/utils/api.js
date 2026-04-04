@@ -64,8 +64,7 @@ export const sessionsAPI = {
   regenCode: (id) => api.patch(`/sessions/${id}/regen-code`),
   startLive: (id) => api.patch(`/sessions/${id}/start-live`),
   endLive: (id) => api.patch(`/sessions/${id}/end-live`),
-  joinLive: (id) => api.post(`/sessions/${id}/join-live`),
-  markLiveAttendance: (id) => api.post(`/sessions/${id}/mark-live-attendance`)
+  joinLive: (id) => api.post(`/sessions/${id}/join-live`)
 };
 
 // ── Attendance ──────────────────────────────────────────────

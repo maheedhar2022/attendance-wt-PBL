@@ -347,9 +347,8 @@ function parseTimeMinutes(timeStr) {
 }
 
 /**
- * @desc    Join a live session — validates enrollment, calculates attendance threshold
- *          Does NOT mark attendance immediately. Returns markAfterMs so the client
- *          sets a timer and calls /mark-live-attendance when threshold is reached.
+ * @desc    Join a live session — verifies enrollment, returns room ID.
+ *          Attendance is now tracked entirely server-side via socket presence time.
  * @route   POST /api/sessions/:id/join-live
  * @access  Private (Student)
  */
@@ -370,121 +369,18 @@ const joinLiveSession = async (req, res) => {
       return res.status(403).json({ success: false, message: 'You are not enrolled in this course.' });
     }
 
-    // ── Calculate attendance threshold ──────────────────────
-    // Threshold = 5/6 of total session duration (e.g. 50 min for 60-min session)
-    const startMins = parseTimeMinutes(session.startTime); // e.g. "09:00" -> 540
-    const endMins   = parseTimeMinutes(session.endTime);   // e.g. "10:00" -> 600
-    const totalDurationMs = Math.max((endMins - startMins) * 60 * 1000, 0);
-    const thresholdMs = totalDurationMs * (5 / 6);
-
-    // Reference point: when the instructor actually started the live session
-    const liveStartedAt = session.liveStartedAt || new Date();
-    const attendanceMarkAt = new Date(liveStartedAt.getTime() + thresholdMs);
-    const now = new Date();
-    const markAfterMs = attendanceMarkAt.getTime() - now.getTime();
-
-    // Student joined BEFORE the threshold — schedule on client side
-    if (markAfterMs > 0) {
-      return res.json({
-        success: true,
-        liveRoomId: session.liveRoomId,
-        canMark: true,
-        markAfterMs,
-        thresholdMinutes: Math.round(thresholdMs / 60000),
-        message: `Your attendance will be recorded in ${Math.ceil(markAfterMs / 60000)} minute(s).`
-      });
-    }
-
-    // Student joined AFTER threshold — mark immediately (late join)
-    const existing = await Attendance.findOne({ session: session._id, student: req.user._id });
-    let attendanceStatus = 'already_marked';
-    if (!existing) {
-      await Attendance.create({
-        session: session._id,
-        course: session.course._id,
-        student: req.user._id,
-        status: 'late',          // past threshold = late
-        markedVia: 'live',
-        markedAt: now
-      });
-      attendanceStatus = 'late';
-    } else {
-      attendanceStatus = existing.status;
-    }
-
+    // Simply return the room ID.
+    // Attendance is calculated server-side based on actual socket presence time.
     return res.json({
       success: true,
       liveRoomId: session.liveRoomId,
-      canMark: false,
-      markAfterMs: 0,
-      attendanceStatus,
-      message: `Joined after threshold. Attendance marked as "${attendanceStatus}".`
+      message: 'Joined session. Attendance tracked by your presence time in the room.'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/**
- * @desc    Actually mark live attendance — called by client timer after threshold
- * @route   POST /api/sessions/:id/mark-live-attendance
- * @access  Private (Student)
- */
-const markLiveAttendance = async (req, res) => {
-  try {
-    const session = await Session.findById(req.params.id).populate('course');
-    if (!session) {
-      return res.status(404).json({ success: false, message: 'Session not found.' });
-    }
-
-    // Verify enrollment
-    const course = await Course.findOne({ _id: session.course._id, students: req.user._id });
-    if (!course) {
-      return res.status(403).json({ success: false, message: 'You are not enrolled in this course.' });
-    }
-
-    // Check if already marked
-    const existing = await Attendance.findOne({ session: session._id, student: req.user._id });
-    if (existing) {
-      return res.json({ success: true, status: existing.status, message: 'Attendance already recorded.' });
-    }
-
-    // Verify threshold has actually been reached (server-side guard)
-    const startMins = parseTimeMinutes(session.startTime);
-    const endMins   = parseTimeMinutes(session.endTime);
-    const totalDurationMs = Math.max((endMins - startMins) * 60 * 1000, 0);
-    const thresholdMs = totalDurationMs * (5 / 6);
-    const liveStartedAt = session.liveStartedAt || new Date();
-    const now = new Date();
-    const elapsedSinceStart = now.getTime() - liveStartedAt.getTime();
-
-    // Allow a 30-second grace window to account for network/timer delays
-    if (elapsedSinceStart < thresholdMs - 30000) {
-      return res.status(400).json({
-        success: false,
-        message: `Attendance threshold not yet reached. Please wait.`
-      });
-    }
-
-    const attendance = await Attendance.create({
-      session: session._id,
-      course: session.course._id,
-      student: req.user._id,
-      status: 'present',
-      markedVia: 'live',
-      markedAt: now
-    });
-
-    res.status(201).json({
-      success: true,
-      status: 'present',
-      message: 'Attendance marked as present.',
-      attendance
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
 
 /**
  * Auto-update session statuses based on scheduled IST start/end times.
@@ -493,9 +389,9 @@ const markLiveAttendance = async (req, res) => {
  * Call this on a timer from server.js (every 60 seconds).
  */
 const autoUpdateSessionStatuses = async () => {
+  const closedSessions = []; // return value so server.js can mark attendance
   try {
     const now = nowIST();
-    // Only look at sessions that are not yet closed/cancelled
     const openSessions = await Session.find({ status: { $in: ['scheduled', 'active'] } });
 
     for (const session of openSessions) {
@@ -503,14 +399,14 @@ const autoUpdateSessionStatuses = async () => {
       const scheduledEnd   = buildISTDateTime(session.date, session.endTime);
 
       if (now >= scheduledEnd) {
-        // Past end time → close it and stop any live video
+        const liveRoomId = session.liveRoomId; // save BEFORE clearing
         session.status = 'closed';
         session.liveSessionActive = false;
         session.liveRoomId = null;
         await session.save();
+        closedSessions.push({ sessionId: session._id.toString(), liveRoomId });
         console.log(`⏰ Auto-closed: "${session.title || session.topic || session._id}" (end: ${session.endTime} IST)`);
       } else if (now >= scheduledStart && session.status === 'scheduled') {
-        // Within time window → activate it
         session.status = 'active';
         await session.save();
         console.log(`▶️  Auto-activated: "${session.title || session.topic || session._id}" (start: ${session.startTime} IST)`);
@@ -519,15 +415,15 @@ const autoUpdateSessionStatuses = async () => {
   } catch (err) {
     console.error('Auto-status update error:', err.message);
   }
+  return closedSessions;
 };
 
-// Keep old export name as alias so server.js import doesn't break
 const autoCloseExpiredSessions = autoUpdateSessionStatuses;
 
 module.exports = {
   createSession, getSessions, getSession, updateSession,
   deleteSession, activateSession, closeSession, regenCode,
-  startLiveSession, endLiveSession, joinLiveSession, markLiveAttendance,
+  startLiveSession, endLiveSession, joinLiveSession,
   autoCloseExpiredSessions, autoUpdateSessionStatuses
 };
 
