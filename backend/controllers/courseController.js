@@ -2,6 +2,7 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const Attendance = require('../models/Attendance');
 const Session = require('../models/Session');
+const { autoCloseExpiredSessions } = require('./sessionController');
 
 /**
  * @desc    Create a new course
@@ -155,6 +156,9 @@ const enrollCourse = async (req, res) => {
  */
 const getCourseStats = async (req, res) => {
   try {
+    // Lazy-evaluate expired sessions
+    await autoCloseExpiredSessions();
+
     const course = await Course.findOne({ _id: req.params.id, instructor: req.user._id })
       .populate('students', 'name email studentId');
 
@@ -162,7 +166,7 @@ const getCourseStats = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    const totalSessions = await Session.countDocuments({ course: course._id, status: { $ne: 'cancelled' } });
+    const totalSessions = await Session.countDocuments({ course: course._id, status: 'closed' });
 
     // Attendance stats per student
     const studentStats = await Promise.all(

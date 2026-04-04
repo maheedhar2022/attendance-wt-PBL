@@ -1,6 +1,7 @@
 const Attendance = require('../models/Attendance');
 const Session = require('../models/Session');
 const Course = require('../models/Course');
+const { autoCloseExpiredSessions } = require('./sessionController');
 
 /**
  * @desc    Mark attendance via session code
@@ -224,12 +225,15 @@ const addManualAttendance = async (req, res) => {
  */
 const getCourseAnalytics = async (req, res) => {
   try {
+    // Lazy-evaluate expired sessions for Serverless environments (Vercel)
+    await autoCloseExpiredSessions();
+
     const course = await Course.findOne({ _id: req.params.courseId, instructor: req.user._id });
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    const sessions = await Session.find({ course: course._id, status: { $ne: 'cancelled' } }).sort('date');
+    const sessions = await Session.find({ course: course._id, status: 'closed' }).sort('date');
     const allRecords = await Attendance.find({ course: course._id });
 
     // Attendance trend over sessions
