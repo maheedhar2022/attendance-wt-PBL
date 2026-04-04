@@ -24,6 +24,9 @@ function VideoTile({ stream, name, isSelf, isMuted, isVideoOff, isInstructor }) 
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream || null;
+      if (stream) {
+        videoRef.current.play().catch(e => console.warn('Video auto-play prevented:', e));
+      }
     }
   }, [stream]);
 
@@ -282,10 +285,16 @@ export default function LiveSessionPage() {
       };
 
       pc.ontrack = (e) => {
-        const remoteStream = e.streams[0];
-        setParticipants(prev => prev.map(p =>
-          p.socketId === from.socketId ? { ...p, stream: remoteStream } : p
-        ));
+        setParticipants(prev => {
+          const remoteStream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+          const existing = prev.find(p => p.socketId === from.socketId);
+          if (existing) {
+             // If we already assigned a fallback MediaStream and it's not the same reference,
+             // we might want to add tracks to it. But e.streams[0] handles this implicitly.
+             return prev.map(p => p.socketId === from.socketId ? { ...p, stream: remoteStream } : p);
+          }
+          return prev;
+        });
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -348,8 +357,8 @@ export default function LiveSessionPage() {
     };
 
     pc.ontrack = (e) => {
-      const remoteStream = e.streams[0];
       setParticipants(prev => {
+        const remoteStream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
         const exists = prev.find(p => p.userId === targetUserId);
         if (exists) {
           return prev.map(p => p.userId === targetUserId ? { ...p, stream: remoteStream } : p);
