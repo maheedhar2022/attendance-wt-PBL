@@ -365,9 +365,10 @@ Role: Instructor
 ## ✨ Feature Highlights
 
 - **Role-based dashboards** — Students and instructors see different UIs
-- **Live attendance codes** — 6-char auto-generated unique codes per session
-- **Real-time session control** — Activate/close attendance windows
-- **Late detection** — Students marked late if > 10 mins after window opens
+- **WebRTC Live Video Sessions** — Integrated P2P video conferencing utilizing STUN servers and custom built-in ICE signaling over WebSockets.
+- **Automated Server-Side Presence Tracking** — Student attendance is fully automated based on exact millisecond socket presence; students must stay connected for 5/6ths of the live session duration to earn an automatic 'Present' status.
+- **Serverless-Optimized Cron Fallbacks** — Uses "Lazy Evaluation" to automatically close expired sessions and sync databases on serverless architectures (like Vercel) where traditional cron jobs fail.
+- **Real-time session control** — Instructor starts video session, UI automatically syncs participant counts.
 - **Analytics with charts** — Trend lines, bar charts, pie charts (Recharts)
 - **CSV export** — Download attendance records for any session
 - **Percentage tracking** — Per-student attendance % with visual progress bars
@@ -393,3 +394,15 @@ Role: Instructor
 | `cd backend && npm run seed` | Populate demo data |
 | `cd frontend && npm run dev` | Start frontend dev server |
 | `cd frontend && npm run build` | Build for production |
+
+---
+
+## ☁️ Deployment Architecture & Caveats
+
+Because this application utilizes persistent **WebSockets (Socket.io)** and in-memory variables (`liveRooms` / `presenceData`) to relay complex WebRTC SDP Offers and ICE Candidates between the instructor and students, **the backend cannot be fully hosted on Vercel or other purely Serverless platforms.** 
+
+- **Frontend:** Can be safely hosted on Vercel, Netlify, or AWS S3.
+- **Backend:** MUST be hosted on a persistent Node.js runtime (such as **Render.com**, **Railway**, or **Heroku**) to maintain active socket connections.
+
+If the backend is deployed to Vercel Serverless Functions, Socket.io will forcefully downgrade to HTTP Long-Polling. Vercel will aggressively route the polling pulses to random container instances, preventing the instructor and student from entering the same WebRTC memory room, ultimately causing remote videos to endlessly hang or appear as black screens.
+
