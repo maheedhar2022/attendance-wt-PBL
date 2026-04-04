@@ -11,6 +11,15 @@ function createPeer(stream) {
       { urls: 'stun:stun1.l.google.com:19302' }
     ]
   });
+  pc._iceQueue = []; // robust queued ICE handling
+  
+  pc.oniceconnectionstatechange = () => {
+    console.log(`[WebRTC] ICE Connection State: ${pc.iceConnectionState}`);
+  };
+  pc.onsignalingstatechange = () => {
+    console.log(`[WebRTC] Signaling State: ${pc.signalingState}`);
+  };
+
   if (stream) stream.getTracks().forEach(t => pc.addTrack(t, stream));
   return pc;
 }
@@ -44,6 +53,7 @@ function VideoTile({ stream, name, isSelf, isMuted, isVideoOff, isInstructor }) 
         autoPlay
         playsInline
         muted={isSelf}
+        onLoadedMetadata={(e) => { e.target.play().catch(err => console.warn('Video auto-play prevented:', err)) }}
         className="video-element"
         style={{ display: (!stream || isVideoOff) ? 'none' : 'block' }}
       />
@@ -269,6 +279,7 @@ export default function LiveSessionPage() {
 
     // Receive WebRTC offer from a new peer
     socket.on('receive-offer', async ({ offer, from }) => {
+      console.log(`[WebRTC] Received explicit OFFER from ${from.userId}`);
       const pc = createPeer(stream);
       pc._remoteSocketId = from.socketId;
       pc._remoteUserId = from.userId;
@@ -285,19 +296,33 @@ export default function LiveSessionPage() {
       };
 
       pc.ontrack = (e) => {
+        console.log(`[WebRTC] ontrack triggered by offer stream! Tracks:`, e.streams ? e.streams.length : 'none');
+        if (!pc._builtStream) {
+          pc._builtStream = (e.streams && e.streams[0]) ? e.streams[0] : new MediaStream([e.track]);
+        } else if (!e.streams || !e.streams[0]) {
+          pc._builtStream.addTrack(e.track);
+        }
+        
         setParticipants(prev => {
-          const remoteStream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+          const remoteStream = pc._builtStream;
           const existing = prev.find(p => p.socketId === from.socketId);
           if (existing) {
-             // If we already assigned a fallback MediaStream and it's not the same reference,
-             // we might want to add tracks to it. But e.streams[0] handles this implicitly.
              return prev.map(p => p.socketId === from.socketId ? { ...p, stream: remoteStream } : p);
           }
-          return prev;
+          // Fallback if peer-joined was missed
+          return [...prev, { userId: from.userId, userName: 'Participant', role: 'student', socketId: from.socketId, stream: remoteStream, audioEnabled: true, videoEnabled: true }];
         });
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      // Drain queued ICE candidates
+      if (pc._iceQueue.length > 0) {
+        for (const c of pc._iceQueue) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) {}
+        }
+        pc._iceQueue = [];
+      }
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -310,15 +335,30 @@ export default function LiveSessionPage() {
 
     // Receive answer
     socket.on('receive-answer', async ({ answer, from }) => {
+      console.log(`[WebRTC] Received explicit ANSWER from ${from.socketId}`);
       const pc = peerConnectionsRef.current[from.socketId];
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        // Drain queued ICE candidates
+        if (pc._iceQueue?.length > 0) {
+          for (const c of pc._iceQueue) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) {}
+          }
+          pc._iceQueue = [];
+        }
+      }
     });
 
     // Receive ICE candidate
     socket.on('receive-ice-candidate', async ({ candidate, from }) => {
       const pc = peerConnectionsRef.current[from.socketId];
       if (pc && candidate) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) {}
+        if (!pc.remoteDescription) {
+          pc._iceQueue = pc._iceQueue || [];
+          pc._iceQueue.push(candidate);
+        } else {
+          try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) {}
+        }
       }
     });
 
@@ -341,6 +381,7 @@ export default function LiveSessionPage() {
 
   // ── Call an existing peer (we initiate) ──────────────────
   const callPeer = async (targetSocketId, targetUserId, targetName, targetRole, stream) => {
+    console.log(`[WebRTC] Initiating call to new peer: ${targetUserId}`);
     const pc = createPeer(stream);
     pc._remoteSocketId = targetSocketId;
     pc._remoteUserId = targetUserId;
@@ -357,8 +398,15 @@ export default function LiveSessionPage() {
     };
 
     pc.ontrack = (e) => {
+      console.log(`[WebRTC] ontrack triggered by answer stream! Tracks:`, e.streams ? e.streams.length : 'none');
+      if (!pc._builtStream) {
+        pc._builtStream = (e.streams && e.streams[0]) ? e.streams[0] : new MediaStream([e.track]);
+      } else if (!e.streams || !e.streams[0]) {
+        pc._builtStream.addTrack(e.track);
+      }
+
       setParticipants(prev => {
-        const remoteStream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+        const remoteStream = pc._builtStream;
         const exists = prev.find(p => p.userId === targetUserId);
         if (exists) {
           return prev.map(p => p.userId === targetUserId ? { ...p, stream: remoteStream } : p);
@@ -664,7 +712,7 @@ export default function LiveSessionPage() {
         </div>
         <div className="live-topbar-right">
           <span className="participant-count-badge">
-            👥 {participantCount || allParticipants.length}
+            👥 {participantCount || allParticipants.length} | Connected: {participants.length + 1}
           </span>
           {!isInstructor && (
             <span style={{ fontSize: 12, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: 20 }}>
