@@ -3,76 +3,6 @@ const Session = require('../models/Session');
 const Course = require('../models/Course');
 const { autoCloseExpiredSessions } = require('./sessionController');
 
-/**
- * @desc    Mark attendance via session code
- * @route   POST /api/attendance/mark
- * @access  Private (Student)
- */
-const markAttendance = async (req, res) => {
-  try {
-    const { code } = req.body;
-
-    if (!code) {
-      return res.status(400).json({ success: false, message: 'Attendance code is required.' });
-    }
-
-    // Find active session with this code
-    const session = await Session.findOne({
-      attendanceCode: code.toUpperCase(),
-      status: 'active'
-    }).populate('course');
-
-    if (!session) {
-      return res.status(404).json({ success: false, message: 'Invalid code or session is not active.' });
-    }
-
-    // Check attendance window
-    const now = new Date();
-    if (session.attendanceWindow?.closesAt && now > session.attendanceWindow.closesAt) {
-      return res.status(400).json({ success: false, message: 'Attendance window has closed.' });
-    }
-
-    // Verify student is enrolled in this course
-    const course = await Course.findOne({
-      _id: session.course._id,
-      students: req.user._id
-    });
-
-    if (!course) {
-      return res.status(403).json({ success: false, message: 'You are not enrolled in this course.' });
-    }
-
-    // Check if already marked
-    const existing = await Attendance.findOne({ session: session._id, student: req.user._id });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Attendance already marked for this session.' });
-    }
-
-    // Determine if late (> 10 mins after window opened)
-    let status = 'present';
-    if (session.attendanceWindow.opensAt) {
-      const minutesLate = (now - session.attendanceWindow.opensAt) / 60000;
-      if (minutesLate > 10) status = 'late';
-    }
-
-    const attendance = await Attendance.create({
-      session: session._id,
-      course: session.course._id,
-      student: req.user._id,
-      status,
-      markedVia: 'code',
-      markedAt: now
-    });
-
-    res.status(201).json({
-      success: true,
-      message: `Attendance marked as "${status}".`,
-      attendance
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
 
 /**
  * @desc    Get student's own attendance history
@@ -238,7 +168,7 @@ const getCourseAnalytics = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    const sessions = await Session.find({ course: course._id, status: { $in: ['active', 'closed'] } }).sort('date');
+    const sessions = await Session.find({ course: course._id, status: 'closed' }).sort('date');
     const allRecords = await Attendance.find({ course: course._id });
 
     // Attendance trend over sessions
@@ -259,4 +189,4 @@ const getCourseAnalytics = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance, getMyAttendance, getSessionAttendance, updateAttendance, addManualAttendance, getCourseAnalytics };
+module.exports = { getMyAttendance, getSessionAttendance, updateAttendance, addManualAttendance, getCourseAnalytics };

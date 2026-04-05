@@ -176,7 +176,7 @@ function InstructorAttendance() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance-${selectedSession.attendanceCode}.csv`;
+    a.download = `attendance-${selectedSession.title || selectedSession._id}.csv`;
     a.click();
   };
 

@@ -87,7 +87,11 @@ const getSessions = async (req, res) => {
       }
     }
     if (status) query.status = status;
-    if (upcoming === 'true') query.date = { $gte: new Date() };
+    if (upcoming === 'true') {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      query.date = { $gte: today };
+    }
 
     const sessions = await Session.find(query)
       .populate('course', 'title code')
@@ -222,17 +226,36 @@ const activateSession = async (req, res) => {
  */
 const closeSession = async (req, res) => {
   try {
-    const session = await Session.findOneAndUpdate(
-      { _id: req.params.id, instructor: req.user._id },
-      { status: 'closed' },
-      { new: true }
-    );
+    const sessionDoc = await Session.findOne({ _id: req.params.id, instructor: req.user._id });
 
-    if (!session) {
+    if (!sessionDoc) {
       return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
-    res.json({ success: true, session, message: 'Session closed.' });
+    const roomId = sessionDoc.liveRoomId;
+
+    sessionDoc.status = 'closed';
+    sessionDoc.liveSessionActive = false;
+    sessionDoc.liveRoomId = null;
+    await sessionDoc.save();
+
+    if (roomId) {
+      const io = req.app.get('io');
+      const markAttendanceForRoom = req.app.get('markAttendanceForRoom');
+      const liveRooms = req.app.get('liveRooms');
+      
+      if (markAttendanceForRoom) {
+        await markAttendanceForRoom(sessionDoc._id.toString(), roomId);
+      }
+      if (io) {
+        io.to(roomId).emit('session-ended');
+      }
+      if (liveRooms && liveRooms[roomId]) {
+        delete liveRooms[roomId];
+      }
+    }
+
+    res.json({ success: true, session: sessionDoc, message: 'Session closed.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

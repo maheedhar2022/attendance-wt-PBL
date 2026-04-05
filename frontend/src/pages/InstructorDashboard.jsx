@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { sessionsAPI, coursesAPI, attendanceAPI } from '../utils/api';
+import { sessionsAPI, coursesAPI } from '../utils/api';
 import { format } from 'date-fns';
 
 export default function InstructorDashboard() {

@@ -175,7 +175,7 @@ const getCourseStats = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    const totalSessions = await Session.countDocuments({ course: course._id, status: { $in: ['active', 'closed'] } });
+    const totalSessions = await Session.countDocuments({ course: course._id, status: 'closed' });
 
     // Attendance stats per student
     const studentStats = await Promise.all(

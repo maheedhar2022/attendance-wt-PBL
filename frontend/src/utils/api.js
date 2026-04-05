@@ -69,7 +69,6 @@ export const sessionsAPI = {
 
 // ── Attendance ──────────────────────────────────────────────
 export const attendanceAPI = {
-  mark: (code) => api.post('/attendance/mark', { code }),
   getMy: (params) => api.get('/attendance/my', { params }),
   getSession: (sessionId) => api.get(`/attendance/session/${sessionId}`),
   update: (id, data) => api.put(`/attendance/${id}`, data),

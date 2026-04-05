@@ -52,7 +52,16 @@ async function markAttendanceForRoom(sessionId, roomId) {
 
     const startMins = parseTimeMinutes(session.startTime);
     const endMins   = parseTimeMinutes(session.endTime);
-    const totalDurationMs = Math.max((endMins - startMins) * 60 * 1000, 0);
+    let totalDurationMs = Math.max((endMins - startMins) * 60 * 1000, 0);
+    
+    // Cap strictly at actual duration if ended earlier than scheduled end
+    if (session.liveStartedAt) {
+      const actualDurationMs = Math.max(Date.now() - session.liveStartedAt.getTime(), 0);
+      if (actualDurationMs < totalDurationMs) {
+        totalDurationMs = actualDurationMs;
+      }
+    }
+    
     const requiredMs = totalDurationMs * (5 / 6); // must attend 5/6 of duration
 
     const roomPresence = presenceData[roomId];
@@ -147,17 +156,20 @@ io.on('connection', (socket) => {
     console.log(`👥 ${userName} (${role}) joined room ${roomId}. Total: ${liveRooms[roomId].length}`);
   });
 
-  // Relay WebRTC offer/answer/ice-candidate between peers
-  socket.on('relay-offer', ({ to, offer, from }) => {
-    io.to(to).emit('receive-offer', { offer, from });
+  // Relay WebRTC offer/answer/ice-candidate between peers securely constructed from server state
+  socket.on('relay-offer', ({ to, offer }) => {
+    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role };
+    io.to(to).emit('receive-offer', { offer, from: safeFrom });
   });
 
-  socket.on('relay-answer', ({ to, answer, from }) => {
-    io.to(to).emit('receive-answer', { answer, from });
+  socket.on('relay-answer', ({ to, answer }) => {
+    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role };
+    io.to(to).emit('receive-answer', { answer, from: safeFrom });
   });
 
-  socket.on('relay-ice-candidate', ({ to, candidate, from }) => {
-    io.to(to).emit('receive-ice-candidate', { candidate, from });
+  socket.on('relay-ice-candidate', ({ to, candidate }) => {
+    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role };
+    io.to(to).emit('receive-ice-candidate', { candidate, from: safeFrom });
   });
 
   // Instructor ends the live session for all
@@ -167,16 +179,20 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Mark attendance FIRST based on actual presence, then notify clients
-    if (sessionId) {
-      const Session = require('./models/Session');
-      const session = await Session.findById(sessionId);
-      if (!session || session.instructor.toString() !== socket.user._id) {
-        console.log(`🔴 Unauthorized: ${socket.user.name} does not own session ${sessionId}`);
-        return;
-      }
-      await markAttendanceForRoom(sessionId, roomId);
+    if (!sessionId) {
+      console.log(`🔴 Unauthorized: missing sessionId for end-live-session`);
+      return;
     }
+
+    const Session = require('./models/Session');
+    const session = await Session.findById(sessionId);
+    if (!session || session.instructor.toString() !== socket.user._id) {
+      console.log(`🔴 Unauthorized: ${socket.user.name} does not own session ${sessionId}`);
+      return;
+    }
+    
+    // Mark attendance FIRST based on actual presence, then notify clients
+    await markAttendanceForRoom(sessionId, roomId);
 
     io.to(roomId).emit('session-ended');
     delete liveRooms[roomId];
@@ -281,5 +297,10 @@ mongoose
     console.error('❌ MongoDB connection failed:', err.message);
     process.exit(1);
   });
+
+// ── Expose components for controllers ─────────────────────────────
+app.set('io', io);
+app.set('markAttendanceForRoom', markAttendanceForRoom);
+app.set('liveRooms', liveRooms);
 
 module.exports = app;

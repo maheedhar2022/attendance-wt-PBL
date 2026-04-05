@@ -449,9 +449,27 @@ export default function LiveSessionPage() {
       // Connect socket
       socket.auth = { token: localStorage.getItem('token') };
       socket.connect();
-      await new Promise(resolve => {
+      await new Promise((resolve, reject) => {
         if (socket.connected) return resolve();
-        socket.once('connect', resolve);
+        
+        const onConnect = () => {
+          socket.off('connect_error', onError);
+          resolve();
+        };
+        const onError = (err) => {
+          socket.off('connect', onConnect);
+          reject(err);
+        };
+        
+        socket.once('connect', onConnect);
+        socket.once('connect_error', onError);
+        
+        // Safety timeout
+        setTimeout(() => {
+          socket.off('connect', onConnect);
+          socket.off('connect_error', onError);
+          reject(new Error('WebSocket connection timed out or authentication failed.'));
+        }, 7000);
       });
 
       setupSocketListeners(stream);
