@@ -40,18 +40,23 @@ function StudentAttendance() {
   };
 
   const statusBadge = (status) => {
-    const map = { present: 'badge-green', late: 'badge-yellow', absent: 'badge-red', excused: 'badge-blue' };
-    return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>;
+    const map = { 
+      present: 'bg-green-500/10 text-green-400 border-green-500/20', 
+      late: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20', 
+      absent: 'bg-red-500/10 text-red-400 border-red-500/20', 
+      excused: 'bg-zoom-blue/10 text-zoom-blue border-zoom-blue/20' 
+    };
+    return <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold border uppercase tracking-wider ${map[status] || 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}>{status}</span>;
   };
 
   return (
     <div className="page-wrapper">
-      <div className="page-header">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="page-title">My Attendance</h1>
-          <p className="page-subtitle">Track your attendance across all courses</p>
+          <p className="page-subtitle mb-0">Track your attendance across all courses</p>
         </div>
-        <select className="form-select" style={{ width: 'auto' }} value={filterCourse} onChange={e => setFilterCourse(e.target.value)}>
+        <select className="form-select max-w-[240px]" value={filterCourse} onChange={e => setFilterCourse(e.target.value)}>
           <option value="">All Courses</option>
           {courses.map(c => <option key={c._id} value={c._id}>{c.title} ({c.code})</option>)}
         </select>
@@ -59,56 +64,61 @@ function StudentAttendance() {
 
       {/* Summary Cards */}
       {stats.length > 0 && (
-        <div className="stats-grid" style={{ marginBottom: 24 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
           {stats.map((s, i) => (
-            <div key={i} className="stat-card">
-              <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{s.course?.code}</div>
-              <div className="stat-label">{s.course?.title}</div>
-              <div className="stat-value" style={{ color: s.percentage >= 75 ? 'var(--green)' : s.percentage >= 50 ? 'var(--yellow)' : 'var(--red)' }}>
-                {s.percentage}%
+            <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all">
+              <div className="text-[11px] text-zoom-blue font-bold tracking-wider uppercase mb-1">{s.course?.code}</div>
+              <div className="text-sm font-semibold text-white truncate mb-3">{s.course?.title}</div>
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-[11px] font-medium text-zinc-500 uppercase">{s.attended} of {s.total} sessions</span>
+                <span className={`text-2xl font-bold tracking-tight ${s.percentage >= 75 ? 'text-green-500' : s.percentage >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {s.percentage}%
+                </span>
               </div>
-              <div className="progress-bar">
-                <div className={`progress-fill ${s.percentage >= 75 ? 'high' : s.percentage >= 50 ? 'medium' : 'low'}`} style={{ width: `${s.percentage}%` }} />
+              <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-700 ${s.percentage >= 75 ? 'bg-green-500' : s.percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${s.percentage}%` }} />
               </div>
-              <div className="stat-sub">{s.attended} of {s.total} sessions</div>
             </div>
           ))}
         </div>
       )}
 
       {/* Records Table */}
-      <div className="card" style={{ padding: 0 }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700 }}>Attendance History</h2>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-zinc-800/80">
+          <h2 className="text-base font-bold text-white">Attendance History</h2>
         </div>
+        
         {loading ? (
-          <div className="page-loader"><div className="loading-spinner" /></div>
+          <div className="py-12 flex justify-center text-zinc-400 font-medium text-sm"><span className="loading-spinner mr-3"/> Loading records...</div>
         ) : records.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">📋</div>
-            <div className="empty-state-title">No records yet</div>
-            <div className="empty-state-desc">Attendance is recorded automatically when you attend a live session for the required duration, or when your instructor marks it manually.</div>
+          <div className="text-center py-16 px-6">
+            <div className="text-4xl mb-4 opacity-80">📋</div>
+            <h3 className="text-base font-semibold text-white mb-2">No records yet</h3>
+            <p className="text-sm text-zinc-400 max-w-md mx-auto">Attendance is recorded automatically when you attend a live session, or when your instructor marks it manually.</p>
           </div>
         ) : (
-          <div className="table-wrapper" style={{ borderRadius: 0, border: 'none' }}>
-            <table>
-              <thead>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-zinc-950/50 text-zinc-400 text-xs uppercase tracking-wider font-semibold border-b border-zinc-800/80">
                 <tr>
-                  <th>Session</th>
-                  <th>Course</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
+                  <th className="px-6 py-4">Session</th>
+                  <th className="px-6 py-4">Course</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Time</th>
+                  <th className="px-6 py-4">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-zinc-800/50">
                 {records.map(rec => (
-                  <tr key={rec._id}>
-                    <td><strong>{rec.session?.title || rec.session?.topic || 'Session'}</strong></td>
-                    <td><span className="badge badge-blue">{rec.course?.code}</span></td>
-                    <td>{rec.session?.date ? format(new Date(rec.session.date), 'MMM d, yyyy') : '—'}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{rec.session?.startTime}</td>
-                    <td>{statusBadge(rec.status)}</td>
+                  <tr key={rec._id} className="hover:bg-zinc-800/30 transition-colors">
+                    <td className="px-6 py-4 font-semibold text-white">{rec.session?.title || rec.session?.topic || 'Session'}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 rounded bg-zinc-800 text-zinc-300 text-xs font-medium border border-zinc-700">{rec.course?.code}</span>
+                    </td>
+                    <td className="px-6 py-4 text-zinc-300">{rec.session?.date ? format(new Date(rec.session.date), 'MMM d, yyyy') : '—'}</td>
+                    <td className="px-6 py-4 text-zinc-500">{rec.session?.startTime}</td>
+                    <td className="px-6 py-4">{statusBadge(rec.status)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,99 +191,123 @@ function InstructorAttendance() {
   };
 
   const statusBadge = (status) => {
-    const map = { present: 'badge-green', late: 'badge-yellow', absent: 'badge-red', excused: 'badge-blue' };
-    return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>;
+    const map = { 
+      present: 'bg-green-500/10 text-green-400 border-green-500/20', 
+      late: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20', 
+      absent: 'bg-red-500/10 text-red-400 border-red-500/20', 
+      excused: 'bg-zoom-blue/10 text-zoom-blue border-zoom-blue/20' 
+    };
+    return <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold border uppercase tracking-wider ${map[status] || 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}>{status}</span>;
   };
 
   return (
-    <div className="page-wrapper">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Attendance Records</h1>
-          <p className="page-subtitle">View and manage student attendance for each session</p>
-        </div>
+    <div className="page-wrapper max-w-full">
+      <div className="mb-8">
+        <h1 className="page-title">Attendance Records</h1>
+        <p className="page-subtitle mb-0">View and manage student attendance for each session</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        
         {/* Session List */}
-        <div className="card" style={{ padding: 0, alignSelf: 'start' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700 }}>Sessions</h3>
+        <div className="w-full lg:w-80 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col h-[600px]">
+          <div className="px-5 py-4 border-b border-zinc-800/80 bg-zinc-950/30">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Sessions Timeline</h3>
           </div>
-          {loading ? (
-            <div className="page-loader" style={{ height: 120 }}><div className="loading-spinner" /></div>
-          ) : sessions.length === 0 ? (
-            <div className="empty-state" style={{ padding: 24 }}>No sessions found.</div>
-          ) : (
-            <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-              {sessions.map(s => (
-                <div key={s._id}
-                  onClick={() => viewAttendance(s)}
-                  style={{
-                    padding: '14px 20px', cursor: 'pointer', borderBottom: '1px solid var(--border)',
-                    background: selectedSession?._id === s._id ? 'var(--accent-glow)' : 'transparent',
-                    transition: 'background 0.15s'
-                  }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: selectedSession?._id === s._id ? 'var(--accent)' : 'var(--text-primary)' }}>
-                    {s.title || s.topic || 'Session'}
+          
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="p-8 flex justify-center text-zinc-500"><span className="loading-spinner" /></div>
+            ) : sessions.length === 0 ? (
+              <div className="p-8 text-center text-sm text-zinc-500">No sessions found.</div>
+            ) : (
+              <div className="divide-y divide-zinc-800/50">
+                {sessions.map(s => (
+                  <div key={s._id}
+                    onClick={() => viewAttendance(s)}
+                    className={`
+                      px-5 py-4 cursor-pointer transition-all duration-200 hover:bg-zinc-800/40
+                      ${selectedSession?._id === s._id ? 'bg-zoom-blue/5 border-l-4 border-zoom-blue pl-4' : 'border-l-0'}
+                    `}
+                  >
+                    <div className={`text-sm font-bold truncate ${selectedSession?._id === s._id ? 'text-zoom-blue' : 'text-zinc-200'}`}>
+                      {s.title || s.topic || 'Session'}
+                    </div>
+                    <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mt-1.5 flex items-center gap-2">
+                      <span className="text-zinc-400">{s.course?.code}</span>
+                      {s.date && <span>&bull; {format(new Date(s.date), 'MMM d, yyyy')}</span>}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-                    {s.course?.code} · {s.date ? format(new Date(s.date), 'MMM d') : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Attendance Detail */}
-        <div>
+        <div className="flex-1 min-w-0 w-full lg:h-[600px] flex flex-col">
           {!selectedSession ? (
-            <div className="card">
-              <div className="empty-state">
-                <div className="empty-state-icon">👈</div>
-                <div className="empty-state-title">Select a session</div>
-                <div className="empty-state-desc">Click a session on the left to view its attendance records.</div>
-              </div>
+            <div className="h-full bg-zinc-900 border border-zinc-800 border-dashed rounded-2xl flex flex-col items-center justify-center p-12 text-center">
+              <div className="text-4xl mb-4 opacity-70">👈</div>
+              <h3 className="text-lg font-bold text-white mb-2">Select a session</h3>
+              <p className="text-sm text-zinc-400 max-w-sm">Click a session on the timeline to view, record, or modify its attendance data.</p>
             </div>
           ) : detailLoading ? (
-            <div className="card"><div className="page-loader"><div className="loading-spinner" /></div></div>
+            <div className="h-full bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center">
+              <span className="loading-spinner w-8 h-8 border-[3px]" />
+            </div>
           ) : attendance ? (
-            <>
-              {/* Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+            <div className="flex flex-col h-full gap-5">
+              
+              {/* Stat Summary Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
                 {[
-                  { label: 'Total', value: attendance.summary.total, color: 'var(--text-primary)' },
-                  { label: 'Present', value: attendance.summary.present, color: 'var(--green)' },
-                  { label: 'Late', value: attendance.summary.late, color: 'var(--yellow)' },
-                  { label: 'Absent', value: attendance.summary.absent, color: 'var(--red)' },
+                  { label: 'Total', value: attendance.summary.total, color: 'text-white' },
+                  { label: 'Present', value: attendance.summary.present, color: 'text-green-500' },
+                  { label: 'Late', value: attendance.summary.late, color: 'text-yellow-500' },
+                  { label: 'Absent', value: attendance.summary.absent, color: 'text-red-500' },
                 ].map(item => (
-                  <div key={item.label} className="stat-card" style={{ padding: 16 }}>
-                    <div className="stat-label">{item.label}</div>
-                    <div className="stat-value" style={{ color: item.color, fontSize: 22 }}>{item.value}</div>
+                  <div key={item.label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                    <div className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{item.label}</div>
+                    <div className={`text-2xl font-bold tracking-tight ${item.color}`}>{item.value}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="card" style={{ padding: 0 }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700 }}>
-                    {selectedSession.title || 'Attendance'} — {selectedSession.date ? format(new Date(selectedSession.date), 'MMM d, yyyy') : ''}
+              {/* Table Area */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0">
+                <div className="px-6 py-4 border-b border-zinc-800/80 bg-zinc-950/30 flex justify-between items-center flex-shrink-0">
+                  <h3 className="text-sm font-bold text-white truncate pr-4">
+                    {selectedSession.title || 'Attendance'} <span className="text-zinc-500 font-medium ml-2">— {selectedSession.date ? format(new Date(selectedSession.date), 'MMMM d, yyyy') : ''}</span>
                   </h3>
-                  <button className="btn btn-sm btn-secondary" onClick={downloadCSV}>⬇️ Export CSV</button>
+                  <button className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition flex-shrink-0 flex items-center gap-2" onClick={downloadCSV}>
+                    ⬇️ Export CSV
+                  </button>
                 </div>
-                <div className="table-wrapper" style={{ borderRadius: 0, border: 'none' }}>
-                  <table>
-                    <thead><tr><th>Student</th><th>ID</th><th>Status</th><th>Marked At</th><th>Actions</th></tr></thead>
-                    <tbody>
+                
+                <div className="overflow-y-auto flex-1">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-zinc-900/50 sticky top-0 z-10 text-zinc-400 text-[11px] uppercase tracking-wider font-bold border-b border-zinc-800/80 backdrop-blur-md">
+                      <tr>
+                        <th className="px-6 py-3 font-semibold">Student</th>
+                        <th className="px-6 py-3 font-semibold">ID</th>
+                        <th className="px-6 py-3 font-semibold">Status</th>
+                        <th className="px-6 py-3 font-semibold">Marked At</th>
+                        <th className="px-6 py-3 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50">
                       {attendance.present.map(rec => (
-                        <tr key={rec._id}>
-                          <td><strong>{rec.student.name}</strong><br /><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{rec.student.email}</span></td>
-                          <td>{rec.student.studentId || '—'}</td>
-                          <td>{statusBadge(rec.status)}</td>
-                          <td style={{ fontSize: 12 }}>{format(new Date(rec.markedAt), 'HH:mm')}</td>
-                          <td>
-                            <select className="form-select" style={{ padding: '4px 8px', fontSize: 12 }}
+                        <tr key={rec._id} className="hover:bg-zinc-800/30">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-white">{rec.student.name}</div>
+                            <div className="text-[11px] text-zinc-500 mt-0.5">{rec.student.email}</div>
+                          </td>
+                          <td className="px-6 py-4 text-zinc-400 font-medium">{rec.student.studentId || '—'}</td>
+                          <td className="px-6 py-4">{statusBadge(rec.status)}</td>
+                          <td className="px-6 py-4 text-zinc-500 text-xs font-medium">{format(new Date(rec.markedAt), 'HH:mm')}</td>
+                          <td className="px-6 py-4">
+                            <select className="form-select py-1.5 px-3 text-xs w-[120px]"
                               value={rec.status}
                               onChange={e => handleUpdateStatus(rec._id, e.target.value)}>
                               {['present', 'late', 'absent', 'excused'].map(s => <option key={s} value={s}>{s}</option>)}
@@ -282,13 +316,16 @@ function InstructorAttendance() {
                         </tr>
                       ))}
                       {attendance.absent.map(student => (
-                        <tr key={student._id} style={{ background: 'rgba(248,113,113,0.04)' }}>
-                          <td><strong>{student.name}</strong><br /><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{student.email}</span></td>
-                          <td>{student.studentId || '—'}</td>
-                          <td>{statusBadge('absent')}</td>
-                          <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</td>
-                          <td>
-                            <button className="btn btn-sm btn-success" onClick={async () => {
+                        <tr key={student._id} className="bg-red-500/5 hover:bg-red-500/10">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-white">{student.name}</div>
+                            <div className="text-[11px] text-zinc-500 mt-0.5">{student.email}</div>
+                          </td>
+                          <td className="px-6 py-4 text-zinc-400 font-medium">{student.studentId || '—'}</td>
+                          <td className="px-6 py-4">{statusBadge('absent')}</td>
+                          <td className="px-6 py-4 text-zinc-600 text-xs">—</td>
+                          <td className="px-6 py-4">
+                            <button className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-zoom-blue/90 hover:bg-zoom-blue transition-colors shadow-sm" onClick={async () => {
                               await attendanceAPI.addManual({ sessionId: selectedSession._id, studentId: student._id, status: 'excused' });
                               viewAttendance(selectedSession);
                             }}>Mark Excused</button>
@@ -299,7 +336,8 @@ function InstructorAttendance() {
                   </table>
                 </div>
               </div>
-            </>
+
+            </div>
           ) : null}
         </div>
       </div>

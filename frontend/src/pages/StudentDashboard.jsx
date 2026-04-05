@@ -43,96 +43,98 @@ export default function StudentDashboard() {
     : 0;
 
   const getPercentageColor = (pct) => {
-    if (pct >= 75) return 'var(--green)';
-    if (pct >= 50) return 'var(--yellow)';
-    return 'var(--red)';
+    if (pct >= 75) return 'text-green-500';
+    if (pct >= 50) return 'text-yellow-500';
+    return 'text-red-500';
+  };
+
+  const getPercentageBarClass = (pct) => {
+    if (pct >= 75) return 'bg-green-500';
+    if (pct >= 50) return 'bg-yellow-500';
+    return 'bg-red-500';
   };
 
   if (loading) return (
-    <div className="page-wrapper">
-      <div className="page-loader"><div className="loading-spinner" /> Loading dashboard...</div>
+    <div className="page-wrapper flex items-center justify-center">
+      <div className="flex items-center gap-3 text-zinc-400 font-medium">
+        <span className="loading-spinner" /> Loading dashboard...
+      </div>
     </div>
   );
 
   return (
     <div className="page-wrapper">
-      {toast && <div className="alert alert-success" style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, maxWidth: 320 }}>{toast}</div>}
-
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
-          <p className="page-subtitle">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md flex items-center gap-3 max-w-sm animate-fade-in">
+          <span>✅</span>
+          <p className="text-sm font-medium">{toast}</p>
         </div>
+      )}
+
+      <div className="mb-8">
+        <h1 className="page-title">Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
+        <p className="page-subtitle">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
       </div>
 
       {/* Stats */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--accent-glow)', fontSize: 20 }}>📚</div>
-          <div>
-            <div className="stat-label">Enrolled Courses</div>
-            <div className="stat-value">{courses.length}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-zoom-blue/10 border border-zoom-blue/20 flex items-center justify-center text-xl">📚</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Enrolled Courses</div>
+          <div className="text-3xl font-bold text-white tracking-tight">{courses.length}</div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-xl">🎯</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Overall Attendance</div>
+          <div className={`text-3xl font-bold tracking-tight ${getPercentageColor(overallPercentage)}`}>
+            {overallPercentage}%
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--green-bg)', fontSize: 20 }}>🎯</div>
-          <div>
-            <div className="stat-label">Overall Attendance</div>
-            <div className="stat-value" style={{ color: getPercentageColor(overallPercentage) }}>
-              {overallPercentage}%
-            </div>
-          </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-xl">📅</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Upcoming Sessions</div>
+          <div className="text-3xl font-bold text-white tracking-tight">{upcomingSessions.length}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--purple-bg)', fontSize: 20 }}>📅</div>
-          <div>
-            <div className="stat-label">Upcoming Sessions</div>
-            <div className="stat-value">{upcomingSessions.length}</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--yellow-bg)', fontSize: 20 }}>⚠️</div>
-          <div>
-            <div className="stat-label">Low Attendance</div>
-            <div className="stat-value" style={{ color: 'var(--yellow)' }}>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-xl">⚠️</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Low Attendance</div>
+          <div className="flex items-baseline gap-2">
+            <div className="text-3xl font-bold tracking-tight text-yellow-500">
               {attendanceStats.filter(s => s.percentage < 75).length}
             </div>
-            <div className="stat-sub">courses below 75%</div>
+            <div className="text-[11px] font-medium text-zinc-500 uppercase">courses &lt; 75%</div>
           </div>
         </div>
       </div>
 
-      <div className="content-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Sessions */}
-        <div className="card">
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
-            📅 Upcoming Sessions
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+            <span>📅</span> Upcoming Sessions
           </h2>
           {upcomingSessions.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">🎉</div>
-              <div className="empty-state-title">All caught up!</div>
-              <div className="empty-state-desc">No upcoming sessions scheduled.</div>
+            <div className="text-center py-10 px-6 bg-zinc-950/50 border border-zinc-800/50 border-dashed rounded-xl">
+              <div className="text-4xl mb-3 opacity-80">🎉</div>
+              <h3 className="text-base font-semibold text-white mb-1">All caught up!</h3>
+              <p className="text-sm text-zinc-400">No upcoming sessions scheduled.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="flex flex-col gap-3">
               {upcomingSessions.map(session => (
-                <div key={session._id} style={{
-                  padding: '14px 16px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+                <div key={session._id} className="p-4 rounded-xl bg-zinc-950/50 border border-zinc-800/50 flex justify-between items-center gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-white truncate">
                       {session.title || session.topic || 'Class Session'}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-                      {session.course?.code} • {format(new Date(session.date), 'MMM d')} at {session.startTime}
+                    <div className="text-xs text-zinc-400 mt-1 truncate">
+                      <span className="text-zoom-blue font-medium">{session.course?.code}</span> &bull; {format(new Date(session.date), 'MMM d')} at {session.startTime}
                     </div>
                   </div>
-                  <div>
+                  <div className="flex-shrink-0">
                     {session.status === 'active'
-                      ? <span className="badge badge-green">● Live</span>
-                      : <span className="badge badge-gray">{formatDistanceToNow(new Date(session.date), { addSuffix: true })}</span>
+                      ? <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-green-500/10 text-green-400 border border-green-500/20 whitespace-nowrap flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>Live</span>
+                      : <span className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700 whitespace-nowrap">{formatDistanceToNow(new Date(session.date), { addSuffix: true })}</span>
                     }
                   </div>
                 </div>
@@ -142,42 +144,42 @@ export default function StudentDashboard() {
         </div>
 
         {/* Course Attendance */}
-        <div className="card">
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
-            📊 Attendance by Course
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+            <span>📊</span> Attendance by Course
           </h2>
           {attendanceStats.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📋</div>
-              <div className="empty-state-title">No records yet</div>
-              <div className="empty-state-desc">Attendance records will appear here.</div>
+            <div className="text-center py-10 px-6 bg-zinc-950/50 border border-zinc-800/50 border-dashed rounded-xl">
+              <div className="text-4xl mb-3 opacity-80">📋</div>
+              <h3 className="text-base font-semibold text-white mb-1">No records yet</h3>
+              <p className="text-sm text-zinc-400">Attendance records will appear here.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="flex flex-col gap-5">
               {attendanceStats.map((stat, i) => (
                 <div key={i}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <div className="flex justify-between items-end mb-2">
+                    <div className="min-w-0 pr-4">
+                      <span className="text-sm font-semibold text-white truncate block">
                         {stat.course?.title}
                       </span>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
-                        {stat.attended}/{stat.total}
+                      <span className="text-[11px] font-medium text-zinc-500 uppercase mt-0.5 block">
+                        {stat.attended} / {stat.total} Sessions
                       </span>
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: getPercentageColor(stat.percentage) }}>
+                    <span className={`text-sm font-bold flex-shrink-0 ${getPercentageColor(stat.percentage)}`}>
                       {stat.percentage}%
                     </span>
                   </div>
-                  <div className="progress-bar">
+                  <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                     <div
-                      className={`progress-fill ${stat.percentage >= 75 ? 'high' : stat.percentage >= 50 ? 'medium' : 'low'}`}
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${getPercentageBarClass(stat.percentage)}`}
                       style={{ width: `${stat.percentage}%` }}
                     />
                   </div>
                   {stat.percentage < 75 && (
-                    <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>
-                      ⚠️ Below 75% threshold
+                    <div className="text-[10px] uppercase font-bold text-red-400 mt-1.5 tracking-wider">
+                      ⚠️ Below Threshold
                     </div>
                   )}
                 </div>

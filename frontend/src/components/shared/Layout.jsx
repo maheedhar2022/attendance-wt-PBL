@@ -42,53 +42,79 @@ export default function Layout() {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <div className="logo-mark">
-            <div className="logo-icon">AX</div>
-            <span className="logo-text">AttendX</span>
+    <div className="flex h-screen bg-zinc-950 overflow-hidden font-sans text-zinc-100">
+      
+      {/* Sidebar Desktop */}
+      <aside className="w-64 bg-zinc-950 border-r border-zinc-800/80 flex flex-col pt-6 pb-5 flex-shrink-0">
+        
+        {/* Brand Logo */}
+        <div className="px-5 pb-6 border-b border-zinc-800/80 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-zoom-blue to-blue-600 flex items-center justify-center font-bold text-[15px] text-white shadow-lg shadow-zoom-blue/20">
+              AX
+            </div>
+            <span className="font-bold text-[19px] tracking-tight text-white">AttendX</span>
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          <span className="nav-section-label">
+        {/* Navigation */}
+        <nav className="flex-1 px-3 flex flex-col gap-1.5 overflow-y-auto">
+          <span className="px-4 pt-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
             {user?.role === 'instructor' ? 'Instructor' : 'Student'} Portal
           </span>
+          
           {navItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              className={({ isActive }) => `
+                flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
+                ${isActive 
+                  ? 'bg-zoom-blue/10 text-zoom-blue' 
+                  : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100'}
+              `}
             >
-              <span className="nav-icon">{item.icon}</span>
-              {item.label}
+              <span className={`text-lg w-5 text-center transition-colors duration-200 ${item.isActive ? '' : 'filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100'}`}>
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
               {item.isSession && hasLive && (
-                <span className="nav-live-dot" title="A live session is active!" />
+                <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" title="Live session active!" />
               )}
             </NavLink>
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="user-card">
-            <div className="user-avatar">{initials}</div>
-            <div className="user-info">
-              <div className="user-name">{user?.name}</div>
-              <div className="user-role">{user?.role}</div>
+        {/* Footer User Card */}
+        <div className="mt-auto px-4 pt-4 border-t border-zinc-800/80 space-y-2">
+          <div className="flex items-center gap-3 p-2 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+            <div className="w-9 h-9 rounded-full relative flex items-center justify-center bg-zinc-800 text-zinc-300 font-bold text-[13px] border border-zinc-700/50">
+              {initials}
+              {/* Online Indicator */}
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-white truncate">{user?.name}</div>
+              <div className="text-[11px] font-medium text-zinc-400 capitalize truncate">{user?.role}</div>
             </div>
           </div>
-          <button className="nav-item btn-ghost" onClick={handleLogout} style={{ marginTop: 4, color: 'var(--red)', width: '100%' }}>
-            <span className="nav-icon">⏻</span>
+          
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+          >
+            <span className="text-lg w-5 text-center">⏻</span>
             Log out
           </button>
         </div>
       </aside>
 
-      <main className="main-content">
+      {/* Main Content Area */}
+      <main className="flex-1 h-screen overflow-y-auto relative z-10 bg-zinc-950">
         <Outlet />
       </main>
+      
     </div>
   );
 }

@@ -33,56 +33,60 @@ function SessionModal({ session, courses, onClose, onSave }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-header">
-          <h2 className="modal-title">{session?._id ? 'Edit Session' : 'Create Session'}</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl relative flex flex-col max-h-[90vh] animate-fade-in">
+        <div className="px-6 py-5 border-b border-zinc-800/80 flex justify-between items-center bg-zinc-900 rounded-t-2xl sticky top-0 z-10">
+          <h2 className="text-lg font-bold text-white">{session?._id ? 'Edit Session' : 'Create Session'}</h2>
+          <button className="text-zinc-500 hover:text-zinc-300 transition-colors outline-none" onClick={onClose}>✕</button>
         </div>
-        {error && <div className="alert alert-error">{error}</div>}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {!session?._id && (
-            <div className="form-group">
-              <label className="form-label">Course *</label>
-              <select name="courseId" value={form.courseId} onChange={handleChange} required className="form-select">
-                <option value="">Select course...</option>
-                {courses.map(c => <option key={c._id} value={c._id}>{c.title} ({c.code})</option>)}
-              </select>
+        
+        <div className="p-6 overflow-y-auto">
+          {error && <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium">{error}</div>}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {!session?._id && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Course <span className="text-zoom-blue">*</span></label>
+                <select name="courseId" value={form.courseId} onChange={handleChange} required className="form-select">
+                  <option value="">Select course...</option>
+                  {courses.map(c => <option key={c._id} value={c._id}>{c.title} ({c.code})</option>)}
+                </select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Session Title</label>
+              <input name="title" value={form.title} onChange={handleChange} className="form-input" placeholder="e.g. Week 3 Lecture" />
             </div>
-          )}
-          <div className="form-group">
-            <label className="form-label">Session Title</label>
-            <input name="title" value={form.title} onChange={handleChange} className="form-input" placeholder="e.g. Week 3 Lecture" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Topic</label>
-            <input name="topic" value={form.topic} onChange={handleChange} className="form-input" placeholder="What will be covered?" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Date *</label>
-            <input type="date" name="date" value={form.date ? form.date.split('T')[0] : ''} onChange={handleChange} required className="form-input" />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="form-group">
-              <label className="form-label">Start Time *</label>
-              <input type="time" name="startTime" value={form.startTime} onChange={handleChange} required className="form-input" />
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Topic</label>
+              <input name="topic" value={form.topic} onChange={handleChange} className="form-input" placeholder="What will be covered?" />
             </div>
-            <div className="form-group">
-              <label className="form-label">End Time *</label>
-              <input type="time" name="endTime" value={form.endTime} onChange={handleChange} required className="form-input" />
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Date <span className="text-zoom-blue">*</span></label>
+              <input type="date" name="date" value={form.date ? form.date.split('T')[0] : ''} onChange={handleChange} required className="form-input" />
             </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Notes</label>
-            <textarea name="notes" value={form.notes} onChange={handleChange} className="form-textarea" placeholder="Any additional notes..." />
-          </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? <span className="loading-spinner" /> : (session?._id ? 'Save Changes' : 'Create Session')}
-            </button>
-          </div>
-        </form>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Start Time <span className="text-zoom-blue">*</span></label>
+                <input type="time" name="startTime" value={form.startTime} onChange={handleChange} required className="form-input" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">End Time <span className="text-zoom-blue">*</span></label>
+                <input type="time" name="endTime" value={form.endTime} onChange={handleChange} required className="form-input" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Notes</label>
+              <textarea name="notes" value={form.notes} onChange={handleChange} className="form-textarea min-h-[100px]" placeholder="Any additional notes..." />
+            </div>
+            
+            <div className="flex gap-3 justify-end mt-4 pt-5 border-t border-zinc-800/80">
+              <button type="button" className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-zinc-800 hover:bg-zinc-700 transition" onClick={onClose}>Cancel</button>
+              <button type="submit" className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-zoom-blue hover:bg-blue-600 transition shadow-lg shadow-zoom-blue/20 flex items-center justify-center min-w-[120px]" disabled={loading}>
+                {loading ? <span className="loading-spinner w-4 h-4 border-[2px]" /> : (session?._id ? 'Save Changes' : 'Create Session')}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -100,7 +104,6 @@ export default function SessionsPage() {
   const [editSession, setEditSession] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState('');
-  const [startingLive, setStartingLive] = useState(null);
 
   useEffect(() => { loadData(); }, [filterStatus]);
 
@@ -141,102 +144,127 @@ export default function SessionsPage() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const statusBadge = (status) => {
-    const map = { active: 'badge-green', scheduled: 'badge-blue', closed: 'badge-gray', cancelled: 'badge-red' };
-    return <span className={`badge ${map[status] || 'badge-gray'}`}>{status === 'active' ? '● ' : ''}{status}</span>;
+    const map = { active: 'bg-green-500/10 text-green-400 border-green-500/20', scheduled: 'bg-zoom-blue/10 text-zoom-blue border-zoom-blue/20', closed: 'bg-zinc-800 text-zinc-400 border-zinc-700', cancelled: 'bg-red-500/10 text-red-500 border-red-500/20' };
+    return <span className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase border flex items-center gap-1.5 w-max ${map[status] || 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}>{status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>}{status}</span>;
   };
 
   const hasLiveSessions = sessions.some(s => s.liveSessionActive);
 
   return (
-    <div className="page-wrapper">
-      {toast && <div className="alert alert-success" style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, maxWidth: 340 }}>{toast}</div>}
+    <div className="page-wrapper max-w-full">
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md flex items-center gap-3 max-w-sm animate-fade-in">
+          <span>✅</span>
+          <p className="text-sm font-medium">{toast}</p>
+        </div>
+      )}
+      
       {showModal && <SessionModal courses={courses} onClose={() => { setShowModal(false); setEditSession(null); }} onSave={() => { loadData(); showToast('Session saved!'); }} session={editSession} />}
 
-      <div className="page-header">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="page-title">
+          <h1 className="page-title flex items-center gap-3">
             Sessions
             {hasLiveSessions && (
-              <span className="live-indicator-pill" style={{ marginLeft: 12 }}>
-                🔴 Live Now
+              <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold uppercase tracking-wider animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span> Live Now
               </span>
             )}
           </h1>
-          <p className="page-subtitle">{isInstructor ? 'Manage your class sessions' : 'Your scheduled class sessions'}</p>
+          <p className="page-subtitle mb-0">{isInstructor ? 'Manage your class sessions' : 'Your scheduled class sessions'}</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <select className="form-select" style={{ width: 'auto' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <div className="flex flex-wrap items-center gap-3">
+          <select className="form-select max-w-[200px]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
             <option value="">All Status</option>
             <option value="scheduled">Scheduled</option>
             <option value="active">Active</option>
             <option value="closed">Closed</option>
           </select>
           {isInstructor && (
-            <button className="btn btn-primary" onClick={() => { setEditSession(null); setShowModal(true); }}>
-              + New Session
+            <button className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-zoom-blue hover:bg-zoom-blue/90 transition shadow-lg shadow-zoom-blue/20 flex gap-2 items-center whitespace-nowrap" onClick={() => { setEditSession(null); setShowModal(true); }}>
+              <span className="text-lg leading-none">+</span> New Session
             </button>
           )}
         </div>
       </div>
 
       {loading ? (
-        <div className="page-loader"><div className="loading-spinner" /> Loading sessions...</div>
+        <div className="py-12 flex justify-center text-zinc-400 font-medium text-sm"><span className="loading-spinner mr-3" /> Loading sessions...</div>
       ) : sessions.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📅</div>
-          <div className="empty-state-title">No sessions found</div>
-          <div className="empty-state-desc">{isInstructor ? 'Create your first session using the button above.' : 'No sessions scheduled yet.'}</div>
+        <div className="text-center py-16 px-6 bg-zinc-900 border border-zinc-800 border-dashed rounded-2xl max-w-2xl mx-auto mt-10">
+          <div className="text-5xl mb-4 opacity-80">📅</div>
+          <h3 className="text-lg font-bold text-white mb-2">No sessions found</h3>
+          <p className="text-sm text-zinc-400 mb-6">{isInstructor ? 'Create your first session using the button above.' : 'No sessions scheduled yet.'}</p>
         </div>
       ) : (
-        <div className="sessions-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {sessions.map(session => (
-            <div key={session._id} className={`session-card ${session.status === 'active' ? 'active-session' : ''} ${session.liveSessionActive ? 'live-session-card' : ''}`}>
-              {/* Live pulse banner */}
+            <div key={session._id} className={`bg-zinc-900 border rounded-2xl flex flex-col transition-all relative overflow-hidden group
+              ${session.status === 'active' ? 'border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.05)]' : 'border-zinc-800 hover:border-zinc-700'}
+            `}>
+              {/* Live Card Banner */}
               {session.liveSessionActive && (
-                <div className="live-card-banner">
-                  <span className="pulse-dot" />
-                  <span>Live in progress</span>
-                </div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-pink-500 to-red-500 blur-[1px]"></div>
               )}
 
-              <div className="session-meta">
-                {statusBadge(session.status)}
-                <span className="session-course">{session.course?.code}</span>
-              </div>
-              <div>
-                <div className="session-title">{session.title || session.topic || 'Class Session'}</div>
-                {session.topic && session.title && <div className="session-topic">{session.topic}</div>}
-              </div>
-              <div className="session-time">
-                📅 {format(new Date(session.date), 'EEEE, MMM d yyyy')}
-                <br />⏰ {session.startTime} – {session.endTime}
-              </div>
-
-              {/* Live / Join Live button */}
-              <div className="session-live-action">
-                {isInstructor ? (
-                  session.liveSessionActive ? (
-                    <button className="btn btn-sm live-rejoin-btn" onClick={() => handleGoLive(session)}>
-                      🔴 Manage Live Session
-                    </button>
-                  ) : (
-                    <button className="btn btn-sm go-live-btn" onClick={() => handleGoLive(session)}>
-                      🎥 Go Live
-                    </button>
-                  )
-                ) : (
-                  session.liveSessionActive && (
-                    <button className="btn btn-sm join-live-btn" onClick={() => handleGoLive(session)}>
-                      🎥 Join Live
-                    </button>
-                  )
+              <div className="p-6 flex-1 flex flex-col relative z-10">
+                {session.liveSessionActive && (
+                  <div className="mb-4 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-red-500 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">
+                    <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span> Live in progress</span>
+                  </div>
                 )}
+                
+                <div className="flex justify-between items-start mb-4">
+                  {statusBadge(session.status)}
+                  <span className="px-2.5 py-1 rounded bg-zinc-800 text-zinc-300 font-bold text-xs uppercase tracking-wider">{session.course?.code}</span>
+                </div>
+                
+                <div className="mb-5 flex-1">
+                  <h3 className="text-lg font-bold text-white leading-tight mb-2 group-hover:text-zoom-blue transition-colors">{session.title || session.topic || 'Class Session'}</h3>
+                  {session.topic && session.title && <p className="text-sm text-zinc-400 leading-relaxed font-medium">{session.topic}</p>}
+                </div>
+                
+                <div className="flex flex-col gap-2.5 text-xs text-zinc-400 font-medium bg-zinc-950/50 p-3.5 rounded-xl border border-zinc-800/50">
+                  <div className="flex items-center gap-2 text-zinc-300">
+                    <span className="text-zinc-500">📅</span> {format(new Date(session.date), 'EEEE, MMM d yyyy')}
+                  </div>
+                  <div className="flex items-center gap-2 text-zinc-300">
+                    <span className="text-zinc-500">⏰</span> {session.startTime} &mdash; {session.endTime}
+                  </div>
+                </div>
               </div>
 
-              {isInstructor && (
-                <div className="session-actions">
-                  <button className="btn btn-sm btn-secondary" onClick={() => { setEditSession({ _id: session._id, courseId: session.course?._id, title: session.title || '', topic: session.topic || '', date: session.date ? session.date.split('T')[0] : '', startTime: session.startTime || '', endTime: session.endTime || '', notes: session.notes || '' }); setShowModal(true); }}>✏️ Edit</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(session._id)}>🗑</button>
+              {/* Action Buttons row (anchored to bottom) */}
+              {(isInstructor || session.liveSessionActive) && (
+                <div className="px-6 py-4 border-t border-zinc-800/80 bg-zinc-950 flex flex-wrap gap-2 text-xs font-bold">
+                  {isInstructor ? (
+                    session.liveSessionActive ? (
+                      <button className="flex-1 py-2 px-3 rounded-lg bg-red-500 flex items-center justify-center gap-2 text-white hover:bg-red-600 transition disabled:opacity-50 border border-red-400/50" onClick={() => handleGoLive(session)}>
+                        🔴 Manage Live
+                      </button>
+                    ) : (
+                      <button className="flex-1 py-2 px-3 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 flex items-center justify-center gap-2 text-white transition border border-zinc-700 group-hover:border-zoom-blue/50 group-hover:text-zoom-blue" onClick={() => handleGoLive(session)}>
+                        🎥 Go Live
+                      </button>
+                    )
+                  ) : (
+                    session.liveSessionActive && (
+                      <button className="flex-1 py-2 px-3 rounded-lg bg-zoom-blue flex items-center justify-center gap-2 text-white hover:bg-blue-600 transition shadow-lg shadow-zoom-blue/20" onClick={() => handleGoLive(session)}>
+                        🎥 Join Live Room
+                      </button>
+                    )
+                  )}
+
+                  {isInstructor && (
+                    <>
+                      <button className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition border border-zinc-700" onClick={() => { setEditSession({ _id: session._id, courseId: session.course?._id, title: session.title || '', topic: session.topic || '', date: session.date ? session.date.split('T')[0] : '', startTime: session.startTime || '', endTime: session.endTime || '', notes: session.notes || '' }); setShowModal(true); }}>
+                        ✏️ Edit
+                      </button>
+                      <button className="px-3 py-2 flex items-center justify-center rounded-lg bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white transition border border-red-500/20" onClick={() => handleDelete(session._id)} title="Delete Session">
+                        🗑
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

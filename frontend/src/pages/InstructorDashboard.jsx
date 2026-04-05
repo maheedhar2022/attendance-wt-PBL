@@ -60,87 +60,89 @@ export default function InstructorDashboard() {
   const activeSessions = recentSessions.filter(s => s.status === 'active').length;
 
   if (loading) return (
-    <div className="page-wrapper">
-      <div className="page-loader"><div className="loading-spinner" /> Loading...</div>
+    <div className="page-wrapper flex items-center justify-center">
+      <div className="flex items-center gap-3 text-zinc-400 font-medium">
+        <span className="loading-spinner" /> Loading dashboard...
+      </div>
     </div>
   );
 
   return (
     <div className="page-wrapper">
-      {toast && <div className="alert alert-success" style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, maxWidth: 340 }}>{toast}</div>}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md flex items-center gap-3 max-w-sm animate-fade-in">
+          <span>✅</span>
+          <p className="text-sm font-medium">{toast}</p>
+        </div>
+      )}
 
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Instructor Dashboard</h1>
-          <p className="page-subtitle">Welcome back, {user?.name} · {format(new Date(), 'EEEE, MMMM d')}</p>
+      <div className="mb-8">
+        <h1 className="page-title">Instructor Dashboard</h1>
+        <p className="page-subtitle">Welcome back, {user?.name} · {format(new Date(), 'EEEE, MMMM d')}</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-zoom-blue/10 border border-zoom-blue/20 flex items-center justify-center text-xl">📚</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Total Courses</div>
+          <div className="text-3xl font-bold text-white tracking-tight">{courses.length}</div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-xl">🎓</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Total Students</div>
+          <div className="text-3xl font-bold text-white tracking-tight">{totalStudents}</div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className="w-11 h-11 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-xl">📅</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Upcoming Sessions</div>
+          <div className="text-3xl font-bold text-white tracking-tight">{sessions.length}</div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg transition-all flex flex-col gap-3">
+          <div className={`w-11 h-11 rounded-lg border flex items-center justify-center text-xl ${activeSessions > 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-zinc-800/50 border-zinc-700'}`}>🔴</div>
+          <div className="text-sm font-medium text-zinc-400 tracking-wide uppercase">Active Now</div>
+          <div className={`text-3xl font-bold tracking-tight ${activeSessions > 0 ? 'text-green-500' : 'text-zinc-500'}`}>{activeSessions}</div>
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--accent-glow)' }}>📚</div>
-          <div className="stat-label">Total Courses</div>
-          <div className="stat-value">{courses.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--green-bg)' }}>🎓</div>
-          <div className="stat-label">Total Students</div>
-          <div className="stat-value">{totalStudents}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--purple-bg)' }}>📅</div>
-          <div className="stat-label">Upcoming Sessions</div>
-          <div className="stat-value">{sessions.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: activeSessions > 0 ? 'var(--green-bg)' : 'var(--bg-elevated)' }}>🔴</div>
-          <div className="stat-label">Active Now</div>
-          <div className="stat-value" style={{ color: activeSessions > 0 ? 'var(--green)' : 'var(--text-primary)' }}>{activeSessions}</div>
-        </div>
-      </div>
-
-      <div className="content-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Sessions */}
-        <div className="card">
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
-            📅 Manage Sessions
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+            <span>📅</span> Manage Sessions
           </h2>
           {sessions.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📅</div>
-              <div className="empty-state-title">No sessions yet</div>
-              <div className="empty-state-desc">Go to Sessions to create your first class session.</div>
+            <div className="text-center py-10 px-6 bg-zinc-950/50 border border-zinc-800/50 border-dashed rounded-xl">
+              <div className="text-4xl mb-3 opacity-80">📅</div>
+              <h3 className="text-base font-semibold text-white mb-1">No sessions yet</h3>
+              <p className="text-sm text-zinc-400">Go to Sessions to create your first class session.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="flex flex-col gap-3">
               {sessions.map(session => (
-                <div key={session._id} style={{
-                  padding: '14px 16px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)',
-                  border: session.status === 'active' ? '1px solid var(--green)' : '1px solid transparent'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
+                <div key={session._id} className={`p-4 rounded-xl bg-zinc-950/50 border ${session.status === 'active' ? 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'border-zinc-800/50'}`}>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-white truncate">
                         {session.title || session.topic || 'Class Session'}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        {session.course?.code} · {format(new Date(session.date), 'MMM d')} {session.startTime}
+                      <div className="text-xs text-zinc-400 mt-1 truncate">
+                        <span className="text-zoom-blue font-medium">{session.course?.code}</span> &bull; {format(new Date(session.date), 'MMM d')} {session.startTime}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="flex gap-2">
                       {session.status === 'active' ? (
-                        <button className="btn btn-sm btn-danger" onClick={() => closeSession(session._id)}>Close</button>
+                        <button className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors shadow shadow-red-500/20" onClick={() => closeSession(session._id)}>Close</button>
                       ) : session.status === 'scheduled' ? (
-                        <button className="btn btn-sm btn-success" onClick={() => activateSession(session._id)}>▶ Start</button>
+                        <button className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500 text-white hover:bg-green-600 transition-colors shadow shadow-green-500/20" onClick={() => activateSession(session._id)}>▶ Start</button>
                       ) : (
-                        <span className="badge badge-gray">{session.status}</span>
+                        <span className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-zinc-800 text-zinc-400 uppercase tracking-wider">{session.status}</span>
                       )}
                     </div>
                   </div>
                   {session.status === 'active' && (
-                    <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--green-bg)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 12, color: 'var(--green)' }}>● Attendance Open</span>
-                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, letterSpacing: 4, color: 'var(--green)' }}>
+                    <div className="mt-3 p-2.5 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center justify-between">
+                      <span className="text-xs font-medium text-green-400 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Attendance Open</span>
+                      <span className="font-mono text-lg font-bold tracking-[0.2em] text-green-400">
                         {session.attendanceCode}
                       </span>
                     </div>
@@ -152,30 +154,29 @@ export default function InstructorDashboard() {
         </div>
 
         {/* My Courses */}
-        <div className="card">
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
-            📚 My Courses
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+            <span>📚</span> My Courses
           </h2>
           {courses.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📚</div>
-              <div className="empty-state-title">No courses yet</div>
-              <div className="empty-state-desc">Create your first course from the Courses page.</div>
+            <div className="text-center py-10 px-6 bg-zinc-950/50 border border-zinc-800/50 border-dashed rounded-xl">
+              <div className="text-4xl mb-3 opacity-80">📚</div>
+              <h3 className="text-base font-semibold text-white mb-1">No courses yet</h3>
+              <p className="text-sm text-zinc-400">Create your first course from the Courses page.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="flex flex-col gap-3">
               {courses.map(course => (
-                <div key={course._id} style={{
-                  padding: '14px 16px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{course.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {course.code} · {course.students?.length || 0} students
+                <div key={course._id} className="p-4 rounded-xl bg-zinc-950/50 border border-zinc-800/50 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-white truncate">{course.title}</div>
+                    <div className="text-xs text-zinc-400 mt-1 truncate">
+                      <span className="font-medium">{course.code}</span> &bull; {course.students?.length || 0} students
                     </div>
                   </div>
-                  <span className="badge badge-blue">{course.semester || 'Active'}</span>
+                  <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-zoom-blue/10 text-zoom-blue border border-zoom-blue/20 whitespace-nowrap">
+                    {course.semester || 'Active'}
+                  </span>
                 </div>
               ))}
             </div>
