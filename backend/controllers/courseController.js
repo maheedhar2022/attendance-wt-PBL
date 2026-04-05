@@ -175,7 +175,16 @@ const getCourseStats = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    const totalSessions = await Session.countDocuments({ course: course._id, status: 'closed' });
+    // A session is valid for analytics if it is 'closed' OR if it already has any marked attendance.
+    const sessionsWithDocs = await Attendance.distinct('session', { course: course._id });
+    const validSessionIds = await Session.find({
+      $or: [
+        { status: 'closed', course: course._id },
+        { _id: { $in: sessionsWithDocs }, course: course._id }
+      ]
+    }).distinct('_id');
+    
+    const totalSessions = validSessionIds.length;
 
     // Attendance stats per student
     const studentStats = await Promise.all(

@@ -168,7 +168,14 @@ const getCourseAnalytics = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    const sessions = await Session.find({ course: course._id, status: 'closed' }).sort('date');
+    // Include 'closed' sessions OR any session that already has attendance records
+    const sessionsWithDocs = await Attendance.distinct('session', { course: course._id });
+    const sessions = await Session.find({
+      $or: [
+        { status: 'closed', course: course._id },
+        { _id: { $in: sessionsWithDocs }, course: course._id }
+      ]
+    }).sort('date');
     const allRecords = await Attendance.find({ course: course._id });
 
     // Attendance trend over sessions
