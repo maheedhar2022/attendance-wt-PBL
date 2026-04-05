@@ -31,7 +31,7 @@ If you do not know the answer to a question, politely say so. Do not invent info
     }))];
 
     const response = await openai.chat.completions.create({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       messages: apiMessages,
       temperature: 0.7,
       max_tokens: 500,

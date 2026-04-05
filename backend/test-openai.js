@@ -2,19 +2,20 @@ require('dotenv').config();
 const { OpenAI } = require('openai');
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
 
 async function main() {
   try {
-    console.log('Sending request to OpenAI...');
+    console.log('Sending request to Groq...');
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'llama-3.1-8b-instant',
       messages: [{ role: 'user', content: 'hello' }],
     });
     console.log('Response:', response.choices[0].message.content);
   } catch (error) {
-    console.error('ERROR from OpenAI:', error.message);
+    console.error('ERROR from Groq:', error.message);
     if (error.response) {
       console.error(error.response.data);
     }
