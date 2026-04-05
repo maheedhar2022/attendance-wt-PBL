@@ -116,6 +116,18 @@ const getSession = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
+    // Security Check: Enforce ownership and enrollment
+    if (req.user.role === 'instructor' && session.instructor._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this session.' });
+    }
+
+    if (req.user.role === 'student') {
+      const isEnrolled = session.course.students.some(id => id.toString() === req.user._id.toString());
+      if (!isEnrolled) {
+        return res.status(403).json({ success: false, message: 'Not enrolled in this course.' });
+      }
+    }
+
     let attendanceRecords = [];
     if (req.user.role === 'instructor') {
       attendanceRecords = await Attendance.find({ session: session._id })

@@ -91,11 +91,31 @@ async function markAttendanceForRoom(sessionId, roomId) {
   }
 }
 
+// ── Socket.io Authentication ──────────────────────────────────
+const jwt = require('jsonwebtoken');
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) return next(new Error('Authentication error: No token'));
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const User = require('./models/User');
+    User.findById(decoded.id).then(user => {
+      if (!user) return next(new Error('User not found'));
+      socket.user = { _id: user._id.toString(), name: user.name, role: user.role };
+      next();
+    }).catch(err => next(new Error('Database error during auth')));
+  } catch (err) {
+    next(new Error('Authentication error: Invalid token'));
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log(`🔌 Socket connected: ${socket.id}`);
+  console.log(`🔌 Socket connected: ${socket.id} (User: ${socket.user.name})`);
 
   // User joins a live video room
-  socket.on('join-live-room', ({ roomId, userId, userName, role }) => {
+  socket.on('join-live-room', ({ roomId }) => {
+    const { _id: userId, name: userName, role } = socket.user;
     socket.join(roomId);
 
     if (!liveRooms[roomId]) liveRooms[roomId] = [];
@@ -142,10 +162,22 @@ io.on('connection', (socket) => {
 
   // Instructor ends the live session for all
   socket.on('end-live-session', async ({ roomId, sessionId }) => {
+    if (socket.user.role !== 'instructor') {
+      console.log(`🔴 Unauthorized end-live-session attempt by non-instructor ${socket.user.name}`);
+      return;
+    }
+
     // Mark attendance FIRST based on actual presence, then notify clients
     if (sessionId) {
+      const Session = require('./models/Session');
+      const session = await Session.findById(sessionId);
+      if (!session || session.instructor.toString() !== socket.user._id) {
+        console.log(`🔴 Unauthorized: ${socket.user.name} does not own session ${sessionId}`);
+        return;
+      }
       await markAttendanceForRoom(sessionId, roomId);
     }
+
     io.to(roomId).emit('session-ended');
     delete liveRooms[roomId];
     console.log(`🔴 Live session ended for room ${roomId}`);

@@ -206,6 +206,11 @@ const addManualAttendance = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
+    const course = await Course.findOne({ _id: session.course, students: studentId });
+    if (!course) {
+      return res.status(400).json({ success: false, message: 'Student is not enrolled in this course.' });
+    }
+
     const attendance = await Attendance.findOneAndUpdate(
       { session: sessionId, student: studentId },
       { session: sessionId, course: session.course, student: studentId, status: status || 'present', notes, markedVia: 'manual', markedAt: new Date() },

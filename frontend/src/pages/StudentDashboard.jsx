@@ -3,66 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { sessionsAPI, attendanceAPI, coursesAPI } from '../utils/api';
 import { format, formatDistanceToNow } from 'date-fns';
 
-function MarkAttendanceModal({ onClose, onSuccess }) {
-  const [code, setCode] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await attendanceAPI.mark(code.toUpperCase());
-      onSuccess?.('Attendance marked successfully! ✅');
-      onClose();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to mark attendance');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-header">
-          <h2 className="modal-title">Mark Attendance</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
-        </div>
-        {error && <div className="alert alert-error">{error}</div>}
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>
-          Enter the 6-character code provided by your instructor.
-        </p>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="form-group">
-            <label className="form-label">Session Code</label>
-            <input
-              className="form-input"
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. ABC123"
-              maxLength={6}
-              required
-              style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 6, textAlign: 'center', fontWeight: 700 }}
-            />
-          </div>
-          <button className="btn btn-primary" disabled={loading || code.length !== 6}>
-            {loading ? <span className="loading-spinner" /> : '✅ Mark Present'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showMarkModal, setShowMarkModal] = useState(false);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
@@ -111,16 +57,12 @@ export default function StudentDashboard() {
   return (
     <div className="page-wrapper">
       {toast && <div className="alert alert-success" style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, maxWidth: 320 }}>{toast}</div>}
-      {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} onSuccess={showToast} />}
 
       <div className="page-header">
         <div>
           <h1 className="page-title">Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
           <p className="page-subtitle">{format(new Date(), 'EEEE, MMMM d yyyy')}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowMarkModal(true)}>
-          ✅ Mark Attendance
-        </button>
       </div>
 
       {/* Stats */}

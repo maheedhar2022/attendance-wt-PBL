@@ -447,6 +447,7 @@ export default function LiveSessionPage() {
       if (!stream) { setJoining(false); return; }
 
       // Connect socket
+      socket.auth = { token: localStorage.getItem('token') };
       socket.connect();
       await new Promise(resolve => {
         if (socket.connected) return resolve();
@@ -456,10 +457,7 @@ export default function LiveSessionPage() {
       setupSocketListeners(stream);
 
       socket.emit('join-live-room', {
-        roomId: roomId.current,
-        userId: user._id,
-        userName: user.name,
-        role: user.role
+        roomId: roomId.current
       });
 
       setInRoom(true);

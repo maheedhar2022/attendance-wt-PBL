@@ -72,6 +72,15 @@ const getCourse = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized.' });
     }
 
+    if (req.user.role === 'student') {
+      const isEnrolled = course.students.some(s => s._id.toString() === req.user._id.toString());
+      if (!isEnrolled) {
+        return res.status(403).json({ success: false, message: 'Not enrolled in this course.' });
+      }
+      // Hide student roster from students to protect PII
+      course.students = undefined;
+    }
+
     res.json({ success: true, course });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
