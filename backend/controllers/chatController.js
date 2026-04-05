@@ -1,7 +1,8 @@
 const { OpenAI } = require('openai');
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
 
 exports.handleChat = async (req, res) => {
@@ -30,7 +31,7 @@ If you do not know the answer to a question, politely say so. Do not invent info
     }))];
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'llama3-8b-8192',
       messages: apiMessages,
       temperature: 0.7,
       max_tokens: 500,
