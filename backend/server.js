@@ -11,6 +11,7 @@ const courseRoutes = require('./routes/courses');
 const sessionRoutes = require('./routes/sessions');
 const attendanceRoutes = require('./routes/attendance');
 const userRoutes = require('./routes/users');
+const chatRoutes = require('./routes/chatRoutes');
 const { autoCloseExpiredSessions } = require('./controllers/sessionController');
 
 const app = express();
@@ -246,6 +247,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ── Health Check ────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

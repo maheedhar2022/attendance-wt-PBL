@@ -82,4 +82,9 @@ export const usersAPI = {
   addToCourse: (courseId, studentId) => api.post(`/users/courses/${courseId}/add-student`, { studentId })
 };
 
+// ── Chat ─────────────────────────────────────────────────────
+export const chatAPI = {
+  sendMessage: (messages) => api.post('/chat', { messages })
+};
+
 export default api;

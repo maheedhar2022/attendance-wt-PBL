@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { sessionsAPI } from '../../utils/api';
+import ChatAssistant from './ChatAssistant';
 
 const buildNav = (role) =>
   role === 'instructor'
@@ -114,6 +115,8 @@ export default function Layout() {
       <main className="flex-1 h-screen overflow-y-auto relative z-10 bg-zinc-950">
         <Outlet />
       </main>
+
+      <ChatAssistant />
       
     </div>
   );
