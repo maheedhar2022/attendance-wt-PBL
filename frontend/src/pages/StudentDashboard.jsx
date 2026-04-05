@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { sessionsAPI, attendanceAPI, coursesAPI } from '../utils/api';
 import { format, formatDistanceToNow } from 'date-fns';
+import AddToCalendarBtn from '../components/shared/AddToCalendarBtn';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -17,7 +18,6 @@ export default function StudentDashboard() {
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [allSessions, setAllSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadData(); }, []);
@@ -25,41 +25,47 @@ export default function StudentDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sessRes, attRes, coursesRes, allSessRes] = await Promise.all([
+      const [sessRes, attRes, coursesRes] = await Promise.all([
         sessionsAPI.getAll({ upcoming: 'true' }),
         attendanceAPI.getMy(),
-        coursesAPI.getAll(),
-        sessionsAPI.getAll({})
+        coursesAPI.getAll()
       ]);
       setUpcomingSessions(sessRes.data.sessions.slice(0, 5));
       setAttendanceStats(attRes.data.stats);
       setCourses(coursesRes.data.courses);
-      setAllSessions(allSessRes.data.sessions);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   const pctColor = (p) => p >= 75 ? 'text-green-500' : p >= 50 ? 'text-yellow-500' : 'text-red-500';
-  const pctBar = (p) => p >= 75 ? 'bg-green-500' : p >= 50 ? 'bg-yellow-500' : 'bg-red-500';
-  const pctBg = (p) => p >= 75 ? 'bg-green-500/10 border-green-500/20 text-green-400' : p >= 50 ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400' : 'bg-red-500/10 border-red-500/20 text-red-400';
+  const pctBar   = (p) => p >= 75 ? 'bg-green-500'  : p >= 50 ? 'bg-yellow-500'  : 'bg-red-500';
+  const pctBg    = (p) => p >= 75
+    ? 'bg-green-500/10 border-green-500/20 text-green-400'
+    : p >= 50
+    ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
+    : 'bg-red-500/10 border-red-500/20 text-red-400';
 
   const overallPct = attendanceStats.length > 0
-    ? Math.round(attendanceStats.reduce((s, c) => s + c.percentage, 0) / attendanceStats.length) : 0;
-  const atRiskCourses = attendanceStats.filter(s => s.percentage < 75);
-  const liveSessions = upcomingSessions.filter(s => s.liveSessionActive);
-  const totalAttended = attendanceStats.reduce((s, c) => s + (c.attended || 0), 0);
-  const totalSessions = attendanceStats.reduce((s, c) => s + (c.total || 0), 0);
+    ? Math.round(attendanceStats.reduce((s, c) => s + c.percentage, 0) / attendanceStats.length)
+    : 0;
+
+  const atRiskCourses  = attendanceStats.filter(s => s.percentage < 75);
+  const liveSessions   = upcomingSessions.filter(s => s.liveSessionActive);
+  const totalAttended  = attendanceStats.reduce((s, c) => s + (c.attended || 0), 0);
+  const totalSessions  = attendanceStats.reduce((s, c) => s + (c.total   || 0), 0);
 
   if (loading) return (
     <div className="page-wrapper flex items-center justify-center min-h-[60vh]">
-      <div className="flex items-center gap-3 text-zinc-400 font-medium"><span className="loading-spinner" /> Loading dashboard...</div>
+      <div className="flex items-center gap-3 text-zinc-400 font-medium">
+        <span className="loading-spinner" /> Loading dashboard...
+      </div>
     </div>
   );
 
   return (
     <div className="page-wrapper">
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="page-title">Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
@@ -75,7 +81,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Live session alert */}
+      {/* ── Live session alert ── */}
       {liveSessions.length > 0 && (
         <div className="mb-8 p-4 rounded-2xl bg-green-500/10 border border-green-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_0_30px_rgba(34,197,94,0.08)]">
           <div className="flex items-center gap-3">
@@ -91,7 +97,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Attendance warning */}
+      {/* ── Attendance warning ── */}
       {atRiskCourses.length > 0 && (
         <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-4">
           <span className="text-2xl">⚠️</span>
@@ -102,7 +108,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Stat cards */}
+      {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:border-zinc-700 transition-all flex flex-col gap-2">
           <div className="w-10 h-10 rounded-lg bg-zoom-blue/10 border border-zoom-blue/20 flex items-center justify-center text-lg">📚</div>
@@ -128,14 +134,14 @@ export default function StudentDashboard() {
           </div>
           <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">At Risk</div>
           <div className={`text-3xl font-bold ${atRiskCourses.length > 0 ? 'text-red-500' : 'text-green-500'}`}>{atRiskCourses.length}</div>
-          <div className="text-[11px] text-zinc-500">course{atRiskCourses.length !== 1 ? 's' : ''} &lt;75%</div>
+          <div className="text-[11px] text-zinc-500">courses &lt;75%</div>
         </div>
       </div>
 
-      {/* Content grid */}
+      {/* ── Main content grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
-        {/* Attendance breakdown — 2 cols */}
+        {/* Attendance breakdown (2 cols) */}
         <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="px-6 py-5 border-b border-zinc-800/80 flex justify-between items-center">
             <h2 className="text-base font-bold text-white flex items-center gap-2"><span>📊</span> Attendance by Course</h2>
@@ -199,15 +205,18 @@ export default function StudentDashboard() {
                       <span>{format(new Date(session.date), 'MMM d')} at {session.startTime}</span>
                     </div>
                   </div>
-                  {session.liveSessionActive ? (
-                    <button onClick={() => navigate('/student/sessions')} className="flex-shrink-0 px-2 py-1 text-[10px] font-bold rounded-md bg-green-500/10 text-green-400 border border-green-500/20 whitespace-nowrap flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>Join
-                    </button>
-                  ) : (
-                    <span className="flex-shrink-0 text-[10px] font-semibold text-zinc-500 whitespace-nowrap">
-                      {formatDistanceToNow(new Date(session.date), { addSuffix: true })}
-                    </span>
-                  )}
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    <AddToCalendarBtn session={session} compact />
+                    {session.liveSessionActive ? (
+                      <button onClick={() => navigate('/student/sessions')} className="px-2 py-1 text-[10px] font-bold rounded-md bg-green-500/10 text-green-400 border border-green-500/20 whitespace-nowrap flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>Join
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-zinc-500 whitespace-nowrap">
+                        {formatDistanceToNow(new Date(session.date), { addSuffix: true })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -215,7 +224,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* My Courses — horizontal cards */}
+      {/* ── My Courses grid ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
         <div className="px-6 py-5 border-b border-zinc-800/80 flex justify-between items-center">
           <h2 className="text-base font-bold text-white flex items-center gap-2"><span>🎓</span> My Courses</h2>
@@ -232,9 +241,7 @@ export default function StudentDashboard() {
                 <div key={course._id} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/60 hover:border-zinc-700 transition-colors flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <span className="px-2 py-0.5 rounded bg-zoom-blue/10 text-zoom-blue border border-zoom-blue/20 text-[11px] font-bold uppercase tracking-wider">{course.code}</span>
-                    {pct !== null && (
-                      <span className={`text-sm font-bold ${pctColor(pct)}`}>{pct}%</span>
-                    )}
+                    {pct !== null && <span className={`text-sm font-bold ${pctColor(pct)}`}>{pct}%</span>}
                   </div>
                   <div>
                     <div className="text-sm font-bold text-white truncate">{course.title}</div>

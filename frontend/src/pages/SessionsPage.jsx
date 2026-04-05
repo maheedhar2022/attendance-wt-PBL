@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { sessionsAPI, coursesAPI } from '../utils/api';
 import { format } from 'date-fns';
+import AddToCalendarBtn from '../components/shared/AddToCalendarBtn';
 
 function SessionModal({ session, courses, onClose, onSave }) {
   const [form, setForm] = useState(session || {
@@ -255,6 +256,10 @@ export default function SessionsPage() {
                     )
                   )}
 
+                  {/* Add to Calendar — always visible for non-closed sessions */}
+                  {session.status !== 'closed' && (
+                    <AddToCalendarBtn session={session} compact />
+                  )}
                   {isInstructor && (
                     <>
                       <button className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition border border-zinc-700" onClick={() => { setEditSession({ _id: session._id, courseId: session.course?._id, title: session.title || '', topic: session.topic || '', date: session.date ? session.date.split('T')[0] : '', startTime: session.startTime || '', endTime: session.endTime || '', notes: session.notes || '' }); setShowModal(true); }}>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { sessionsAPI, coursesAPI } from '../utils/api';
 import { format, formatDistanceToNow } from 'date-fns';
+import AddToCalendarBtn from '../components/shared/AddToCalendarBtn';
 
 export default function InstructorDashboard() {
   const { user } = useAuth();
@@ -142,7 +143,8 @@ export default function InstructorDashboard() {
                       <span>{session.startTime} – {session.endTime}</span>
                     </div>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 flex-shrink-0 items-center">
+                    {session.status !== 'closed' && <AddToCalendarBtn session={session} compact />}
                     {session.status === 'active' ? (
                       <button className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition" onClick={() => closeSession(session._id)}>■ Close</button>
                     ) : session.status === 'scheduled' ? (
