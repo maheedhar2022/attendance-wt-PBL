@@ -2,9 +2,11 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 
 // Socket.io connection for live video sessions
+// auth.token is set dynamically before each connect() call to avoid stale token issues
 export const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
   autoConnect: false,
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  auth: (cb) => cb({ token: localStorage.getItem('token') })
 });
 
 

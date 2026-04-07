@@ -78,8 +78,7 @@ const getSessions = async (req, res) => {
       query.instructor = req.user._id;
       if (courseId) query.course = courseId;
     } else {
-      const user = await require('../models/User').findById(req.user._id);
-      const enrolled = user.enrolledCourses || [];
+      const enrolled = req.user.enrolledCourses || [];
       if (courseId && enrolled.map(id => id.toString()).includes(courseId)) {
         query.course = courseId;
       } else {
@@ -157,9 +156,13 @@ const updateSession = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Session not found or not authorized.' });
     }
 
-    const updated = await Session.findByIdAndUpdate(req.params.id, req.body, {
-      new: true, runValidators: true
-    }).populate('course', 'title code');
+    // Whitelist allowed fields to prevent mass-assignment attacks
+    const { title, topic, date, startTime, endTime, notes } = req.body;
+    const updated = await Session.findByIdAndUpdate(
+      req.params.id,
+      { title, topic, date, startTime, endTime, notes },
+      { new: true, runValidators: true }
+    ).populate('course', 'title code');
 
     res.json({ success: true, session: updated });
   } catch (err) {
@@ -276,7 +279,9 @@ const regenCode = async (req, res) => {
     session.attendanceCode = undefined;
     await session.save();
 
-    res.json({ success: true, attendanceCode: session.attendanceCode });
+    // Re-fetch to guarantee we return the freshly generated code from the pre-save hook
+    const refreshed = await Session.findById(session._id).select('attendanceCode');
+    res.json({ success: true, attendanceCode: refreshed.attendanceCode });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

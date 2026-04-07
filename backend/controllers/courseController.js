@@ -99,9 +99,13 @@ const updateCourse = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found or not authorized.' });
     }
 
-    const updated = await Course.findByIdAndUpdate(req.params.id, req.body, {
-      new: true, runValidators: true
-    });
+    // Whitelist allowed fields to prevent mass-assignment attacks
+    const { title, description, schedule, semester, academicYear, isActive } = req.body;
+    const updated = await Course.findByIdAndUpdate(
+      req.params.id,
+      { title, description, schedule, semester, academicYear, isActive },
+      { new: true, runValidators: true }
+    );
 
     res.json({ success: true, course: updated });
   } catch (err) {
@@ -121,8 +125,20 @@ const deleteCourse = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found or not authorized.' });
     }
 
-    await Course.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Course deleted successfully.' });
+    const courseId = req.params.id;
+
+    // Cascade: delete all sessions and attendance records for this course
+    await Attendance.deleteMany({ course: courseId });
+    await Session.deleteMany({ course: courseId });
+
+    // Cascade: remove course from all enrolled students' enrolledCourses list
+    await User.updateMany(
+      { enrolledCourses: courseId },
+      { $pull: { enrolledCourses: courseId } }
+    );
+
+    await Course.findByIdAndDelete(courseId);
+    res.json({ success: true, message: 'Course and all related data deleted successfully.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -140,7 +156,8 @@ const enrollCourse = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found.' });
     }
 
-    if (course.students.includes(req.user._id)) {
+    // Use .some() for correct ObjectId comparison (.includes() uses === which fails for ObjectIds)
+    if (course.students.some(id => id.toString() === req.user._id.toString())) {
       return res.status(400).json({ success: false, message: 'Already enrolled in this course.' });
     }
 

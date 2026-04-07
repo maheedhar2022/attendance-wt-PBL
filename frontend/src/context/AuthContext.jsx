@@ -10,13 +10,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  // Verify token on mount
+  // Always verify token against the server on mount — catches expired/revoked tokens
+  // even when a cached user object is already in localStorage
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token && !user) {
+    if (token) {
       authAPI.getMe()
-        .then(res => setUser(res.data.user))
-        .catch(() => { localStorage.removeItem('token'); localStorage.removeItem('user'); })
+        .then(res => {
+          setUser(res.data.user);
+          // Keep localStorage in sync with latest server-side profile
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+        })
+        .catch(() => {
+          // Token is invalid or expired — clear everything
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        })
         .finally(() => setInitialized(true));
     } else {
       setInitialized(true);

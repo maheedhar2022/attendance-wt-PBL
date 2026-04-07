@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  markAttendance, getMyAttendance, getSessionAttendance,
+  getMyAttendance, getSessionAttendance,
   updateAttendance, addManualAttendance, getCourseAnalytics
 } = require('../controllers/attendanceController');
 const { protect, authorize } = require('../middleware/auth');

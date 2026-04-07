@@ -14,6 +14,10 @@ const userRoutes = require('./routes/users');
 const chatRoutes = require('./routes/chatRoutes');
 const { autoCloseExpiredSessions } = require('./controllers/sessionController');
 
+// ── Attendance Config ─────────────────────────────────────────────
+// Students must attend this fraction of session duration to be marked present
+const ATTENDANCE_PRESENCE_THRESHOLD = 5 / 6; // must attend ~83% of session
+
 const app = express();
 const server = http.createServer(app);
 
@@ -63,7 +67,7 @@ async function markAttendanceForRoom(sessionId, roomId) {
       }
     }
     
-    const requiredMs = totalDurationMs * (5 / 6); // must attend 5/6 of duration
+    const requiredMs = totalDurationMs * ATTENDANCE_PRESENCE_THRESHOLD;
 
     const roomPresence = presenceData[roomId];
     const now = Date.now();
