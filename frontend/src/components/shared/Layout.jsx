@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { sessionsAPI, authAPI } from '../../utils/api';
@@ -12,12 +12,14 @@ const buildNav = (role) =>
         { to: '/instructor/courses', label: 'Courses', icon: '📚' },
         { to: '/instructor/attendance', label: 'Attendance', icon: '✅' },
         { to: '/instructor/analytics', label: 'Analytics', icon: '📊' },
+        { to: '/instructor/profile', label: 'Settings', icon: '⚙️' },
       ]
     : [
         { to: '/student', label: 'Dashboard', icon: '⊞', end: true },
         { to: '/student/sessions', label: 'Sessions', icon: '📅', isSession: true },
         { to: '/student/courses', label: 'My Courses', icon: '📚' },
         { to: '/student/attendance', label: 'Attendance', icon: '✅' },
+        { to: '/student/profile', label: 'Settings', icon: '⚙️' },
       ];
 
 export default function Layout() {
@@ -28,32 +30,9 @@ export default function Layout() {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('sidebarCollapsed') === 'true';
   });
-  const fileInputRef = useRef(null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const handleAvatarClick = () => {
-    if (fileInputRef.current) fileInputRef.current.click();
-  };
-
-  const handleAvatarChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingAvatar(true);
-    try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      const res = await authAPI.uploadAvatar(formData);
-      if (res.data.success && updateUser) {
-        updateUser(res.data.user);
-      }
-    } catch (error) {
-      console.error('Failed to upload avatar:', error);
-      const errMsg = error.response?.data?.message || 'Please try again.';
-      alert(`Failed to upload avatar: ${errMsg}`);
-    } finally {
-      setUploadingAvatar(false);
-    }
+    navigate(`/${user?.role || 'student'}/profile`);
   };
 
   // Poll for live sessions every 15s to show the pulsing dot
@@ -139,22 +118,16 @@ export default function Layout() {
             <div 
               onClick={handleAvatarClick}
               className="w-9 h-9 shrink-0 rounded-full relative flex items-center justify-center bg-zinc-800 text-zinc-300 font-bold text-[13px] border border-zinc-700/50 cursor-pointer hover:opacity-80 transition-opacity" 
-              title={isCollapsed ? user?.name : "Change Profile Picture"}
+              title={isCollapsed ? user?.name : "Change Profile Settings"}
             >
               {user?.avatar ? (
                 <img src={user.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
               ) : (
                 initials
               )}
-              {uploadingAvatar && (
-                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                </div>
-              )}
               {/* Online Indicator */}
               <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
             </div>
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
             {!isCollapsed && (
               <div className="flex-1 min-w-0 animate-fade-in">
                 <div className="text-sm font-bold text-white truncate">{user?.name}</div>

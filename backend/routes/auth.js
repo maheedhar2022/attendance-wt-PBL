@@ -1,7 +1,7 @@
 // ── routes/auth.js ──────────────────────────────────────────────
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe, updateProfile, uploadAvatar } = require('../controllers/authController');
+const { register, login, getMe, updateProfile, uploadAvatar, changePassword } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
@@ -47,10 +47,16 @@ const loginValidators = [
   body('password').notEmpty().withMessage('Password is required.'),
 ];
 
+const passwordValidators = [
+  body('currentPassword').notEmpty().withMessage('Current password is required.'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters.'),
+];
+
 router.post('/register', authLimiter, registerValidators, handleValidation, register);
 router.post('/login', loginLimiter, loginValidators, handleValidation, login);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.post('/profile/avatar', protect, upload.single('avatar'), uploadAvatar);
+router.put('/password', protect, passwordValidators, handleValidation, changePassword);
 
 module.exports = router;

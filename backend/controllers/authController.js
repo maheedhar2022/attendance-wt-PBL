@@ -127,4 +127,37 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, uploadAvatar };
+/**
+ * @desc    Change password
+ * @route   PUT /api/auth/password
+ * @access  Private
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Current and new password are required.' });
+    }
+
+    // Must fetch user with password field explicitly included
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Incorrect current password.' });
+    }
+
+    user.password = newPassword;
+    await user.save(); // pre-save hook will hash it
+
+    res.json({ success: true, message: 'Password updated successfully.', user: user.toPublicJSON() });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { register, login, getMe, updateProfile, uploadAvatar, changePassword };
