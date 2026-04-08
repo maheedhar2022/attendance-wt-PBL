@@ -143,7 +143,7 @@ io.use((socket, next) => {
     const User = require('./models/User');
     User.findById(decoded.id).then(user => {
       if (!user) return next(new Error('User not found'));
-      socket.user = { _id: user._id.toString(), name: user.name, role: user.role };
+      socket.user = { _id: user._id.toString(), name: user.name, role: user.role, avatar: user.avatar || '' };
       next();
     }).catch(err => next(new Error('Database error during auth')));
   } catch (err) {
@@ -163,20 +163,20 @@ io.on('connection', (socket) => {
 
     // Remove stale entry for same user if reconnecting
     liveRooms[roomId] = liveRooms[roomId].filter(p => p.userId !== userId);
-    liveRooms[roomId].push({ socketId: socket.id, userId, userName, role });
+    liveRooms[roomId].push({ socketId: socket.id, userId, userName, role, avatar: socket.user.avatar });
 
     // ── Presence tracking ───────────────────────────────────
     if (!presenceData[roomId]) presenceData[roomId] = {};
     if (!presenceData[roomId][userId]) {
       // First join: start counting from now
-      presenceData[roomId][userId] = { totalMs: 0, currentJoinedAt: new Date(), userName, role };
+      presenceData[roomId][userId] = { totalMs: 0, currentJoinedAt: new Date(), userName, role, avatar: socket.user.avatar };
     } else {
       // Re-join after leaving: resume counting from now (previous stint already saved)
       presenceData[roomId][userId].currentJoinedAt = new Date();
     }
 
     // Tell existing participants about the new joiner
-    socket.to(roomId).emit('peer-joined', { peerId: userId, userName, role, socketId: socket.id });
+    socket.to(roomId).emit('peer-joined', { peerId: userId, userName, role, avatar: socket.user.avatar, socketId: socket.id });
 
     // Send the new joiner the list of existing participants
     const existing = liveRooms[roomId].filter(p => p.userId !== userId);
@@ -190,17 +190,17 @@ io.on('connection', (socket) => {
 
   // Relay WebRTC offer/answer/ice-candidate between peers securely constructed from server state
   socket.on('relay-offer', ({ to, offer }) => {
-    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role };
+    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role, avatar: socket.user.avatar };
     io.to(to).emit('receive-offer', { offer, from: safeFrom });
   });
 
   socket.on('relay-answer', ({ to, answer }) => {
-    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role };
+    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role, avatar: socket.user.avatar };
     io.to(to).emit('receive-answer', { answer, from: safeFrom });
   });
 
   socket.on('relay-ice-candidate', ({ to, candidate }) => {
-    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role };
+    const safeFrom = { socketId: socket.id, userId: socket.user._id, userName: socket.user.name, role: socket.user.role, avatar: socket.user.avatar };
     io.to(to).emit('receive-ice-candidate', { candidate, from: safeFrom });
   });
 

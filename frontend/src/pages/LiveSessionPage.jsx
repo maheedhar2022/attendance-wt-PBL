@@ -25,7 +25,7 @@ function createPeer(stream) {
 }
 
 /* ── Video Tile ────────────────────────────────────────────── */
-function VideoTile({ stream, name, isSelf, isMuted, isVideoOff, isInstructor, dominant = false }) {
+function VideoTile({ stream, name, avatar, isSelf, isMuted, isVideoOff, isInstructor, dominant = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -51,9 +51,13 @@ function VideoTile({ stream, name, isSelf, isMuted, isVideoOff, isInstructor, do
       
       {(!stream || isVideoOff) && (
         <div className="absolute inset-0 bg-zinc-900/95 flex items-center justify-center backdrop-blur-md">
-          <div className={`${dominant ? 'w-32 h-32 text-4xl' : 'w-16 h-16 text-xl'} rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-white flex items-center justify-center font-bold shadow-inner border border-zinc-600/50`}>
-            {name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
-          </div>
+          {avatar ? (
+            <img src={avatar} alt={name} className={`${dominant ? 'w-48 h-48' : 'w-16 h-16'} rounded-full object-cover shadow-inner border border-zinc-600/50`} />
+          ) : (
+            <div className={`${dominant ? 'w-48 h-48 text-5xl' : 'w-16 h-16 text-xl'} rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-white flex items-center justify-center font-bold shadow-inner border border-zinc-600/50`}>
+              {name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+            </div>
+          )}
         </div>
       )}
 
@@ -228,13 +232,13 @@ export default function LiveSessionPage() {
 
   const setupSocketListeners = useCallback((stream) => {
     socket.on('room-participants', (existing) => {
-      existing.forEach(async (p) => await callPeer(p.socketId, p.userId, p.userName, p.role, stream));
+      existing.forEach(async (p) => await callPeer(p.socketId, p.userId, p.userName, p.role, p.avatar, stream));
     });
 
-    socket.on('peer-joined', ({ peerId, userName, role, socketId }) => {
+    socket.on('peer-joined', ({ peerId, userName, role, avatar, socketId }) => {
       setParticipants(prev => {
         if (prev.find(p => p.userId === peerId)) return prev;
-        return [...prev, { userId: peerId, userName, role, socketId, stream: null, audioEnabled: true, videoEnabled: true }];
+        return [...prev, { userId: peerId, userName, role, avatar, socketId, stream: null, audioEnabled: true, videoEnabled: true }];
       });
     });
 
@@ -259,7 +263,7 @@ export default function LiveSessionPage() {
         
         setParticipants(prev => {
           if (prev.find(p => p.socketId === from.socketId)) return prev.map(p => p.socketId === from.socketId ? { ...p, stream: pc._builtStream } : p);
-          return [...prev, { userId: from.userId, userName: 'Participant', role: 'student', socketId: from.socketId, stream: pc._builtStream, audioEnabled: true, videoEnabled: true }];
+          return [...prev, { userId: from.userId, userName: from.userName || 'Participant', role: from.role || 'student', avatar: from.avatar, socketId: from.socketId, stream: pc._builtStream, audioEnabled: true, videoEnabled: true }];
         });
       };
 
@@ -300,7 +304,7 @@ export default function LiveSessionPage() {
     socket.on('session-ended', () => { setSessionEnded(true); setTimeout(() => navigate(-1), 4000); });
   }, [user, navigate]);
 
-  const callPeer = async (targetSocketId, targetUserId, targetName, targetRole, stream) => {
+  const callPeer = async (targetSocketId, targetUserId, targetName, targetRole, targetAvatar, stream) => {
     const pc = createPeer(stream);
     pc._remoteSocketId = targetSocketId; pc._remoteUserId = targetUserId;
     peerConnectionsRef.current[targetSocketId] = pc;
@@ -315,7 +319,7 @@ export default function LiveSessionPage() {
 
       setParticipants(prev => {
         if (prev.find(p => p.userId === targetUserId)) return prev.map(p => p.userId === targetUserId ? { ...p, stream: pc._builtStream } : p);
-        return [...prev, { userId: targetUserId, userName: targetName, role: targetRole, socketId: targetSocketId, stream: pc._builtStream, audioEnabled: true, videoEnabled: true }];
+        return [...prev, { userId: targetUserId, userName: targetName, role: targetRole, avatar: targetAvatar, socketId: targetSocketId, stream: pc._builtStream, audioEnabled: true, videoEnabled: true }];
       });
     };
 
@@ -325,7 +329,7 @@ export default function LiveSessionPage() {
 
     setParticipants(prev => {
       if (prev.find(p => p.userId === targetUserId)) return prev;
-      return [...prev, { userId: targetUserId, userName: targetName, role: targetRole, socketId: targetSocketId, stream: null, audioEnabled: true, videoEnabled: true }];
+      return [...prev, { userId: targetUserId, userName: targetName, role: targetRole, avatar: targetAvatar, socketId: targetSocketId, stream: null, audioEnabled: true, videoEnabled: true }];
     });
   };
 
@@ -371,6 +375,11 @@ export default function LiveSessionPage() {
   const handleEndLive = async () => {
     if (!window.confirm('End the session for everyone?')) return;
     try { socket.emit('end-live-session', { roomId: roomId.current, sessionId }); await sessionsAPI.endLive(sessionId); cleanup(); navigate(-1); } catch (e) {}
+  };
+
+  const handleLeave = () => {
+    cleanup();
+    navigate(-1);
   };
 
   const toggleAudio = () => {
@@ -491,7 +500,7 @@ export default function LiveSessionPage() {
   }
 
   /* ── RENDER: In-room ═══════════════════════════════════════ */
-  const allParticipants = [{ userId: user._id, userName: user.name, role: user.role, stream: localStream, audioEnabled, videoEnabled, isSelf: true }, ...participants];
+  const allParticipants = [{ userId: user._id, userName: user.name, role: user.role, avatar: user.avatar, stream: localStream, audioEnabled, videoEnabled, isSelf: true }, ...participants];
   const instructorParticipant = allParticipants.find(p => p.role === 'instructor');
   const studentParticipants = allParticipants.filter(p => p.role !== 'instructor');
 
@@ -535,8 +544,8 @@ export default function LiveSessionPage() {
           
           {/* Spotlight (Instructor) */}
           {instructorParticipant && (
-            <div className={`transition-all duration-500 ease-in-out ${studentParticipants.length > 0 ? 'h-3/5 md:h-full md:flex-1 lg:w-3/4' : 'w-full h-full max-w-7xl mx-auto'}`}>
-              <VideoTile stream={instructorParticipant.stream} name={instructorParticipant.userName} isSelf={instructorParticipant.isSelf} isMuted={!instructorParticipant.audioEnabled} isVideoOff={!instructorParticipant.videoEnabled} isInstructor={true} dominant={true} />
+            <div className={`transition-all duration-500 ease-in-out ${studentParticipants.length > 0 ? 'h-3/5 md:h-full md:flex-1 lg:w-3/4' : 'w-full h-full mx-auto'}`}>
+              <VideoTile stream={instructorParticipant.stream} name={instructorParticipant.userName} avatar={instructorParticipant.avatar} isSelf={instructorParticipant.isSelf} isMuted={!instructorParticipant.audioEnabled} isVideoOff={!instructorParticipant.videoEnabled} isInstructor={true} dominant={true} />
             </div>
           )}
 
@@ -544,7 +553,7 @@ export default function LiveSessionPage() {
           <div className={`transition-all overflow-y-auto custom-scrollbar content-start
             ${studentParticipants.length === 0 ? 'hidden' : ''}
             ${instructorParticipant ? 'h-2/5 md:h-full md:w-64 lg:w-80 flex gap-2 md:block space-y-0 md:space-y-4' : 
-              `grid gap-4 w-full h-full max-w-7xl mx-auto items-center justify-center
+              `grid gap-4 w-full h-full mx-auto items-center justify-center
                ${studentParticipants.length === 1 ? 'grid-cols-1 md:grid-cols-2' : 
                  studentParticipants.length <= 4 ? 'grid-cols-2 lg:grid-cols-2' : 
                  studentParticipants.length <= 9 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}
@@ -552,7 +561,7 @@ export default function LiveSessionPage() {
           >
             {(!instructorParticipant ? allParticipants : studentParticipants).map(p => (
               <div key={p.userId} className={`${instructorParticipant ? 'w-48 shrink-0 md:w-full md:aspect-video aspect-video' : ''}`}>
-                <VideoTile stream={p.stream} name={p.userName} isSelf={p.isSelf} isMuted={!p.audioEnabled} isVideoOff={!p.videoEnabled} isInstructor={p.role === 'instructor'} />
+                <VideoTile stream={p.stream} name={p.userName} avatar={p.avatar} isSelf={p.isSelf} isMuted={!p.audioEnabled} isVideoOff={!p.videoEnabled} isInstructor={p.role === 'instructor'} />
               </div>
             ))}
           </div>
