@@ -42,7 +42,7 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/profile', data),
   uploadAvatar: (formData) => api.post('/auth/profile/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': undefined }
   })
 };
 
