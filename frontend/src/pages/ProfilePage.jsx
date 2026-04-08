@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { authAPI } from '../../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { authAPI } from '../utils/api';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
