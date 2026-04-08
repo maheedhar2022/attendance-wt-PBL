@@ -1,6 +1,11 @@
 const User = require('../models/User');
 const Course = require('../models/Course');
 const { generateToken } = require('../middleware/auth');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+
 
 /**
  * @desc    Register a new user
@@ -160,4 +165,65 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, uploadAvatar, changePassword };
+/**
+ * @desc    Google OAuth Sign-In / Sign-Up
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
+const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ success: false, message: 'Google credential is required.' });
+    }
+
+    // Verify the ID token with Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    if (!email || !googleId) {
+      return res.status(400).json({ success: false, message: 'Invalid Google account data.' });
+    }
+
+    // Find existing user by googleId or email
+    let user = await User.findOne({ $or: [{ googleId }, { email }] }).select('+googleId');
+
+    if (user) {
+      // Link googleId if the account existed via email/password and hasn't been linked yet
+      if (!user.googleId) {
+        user.googleId = googleId;
+        if (picture && !user.avatar) user.avatar = picture;
+        await user.save();
+      }
+    } else {
+      // New user — auto-register with Google info (default role: student)
+      user = await User.create({
+        name,
+        email,
+        googleId,
+        avatar: picture || '',
+        role: 'student'
+        // no password needed for Google users
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Google sign-in successful.',
+      token,
+      user: user.toPublicJSON()
+    });
+  } catch (err) {
+    console.error('Google login error:', err.message);
+    res.status(401).json({ success: false, message: 'Google verification failed. Please try again.' });
+  }
+};
+
+module.exports = { register, login, getMe, updateProfile, uploadAvatar, changePassword, googleLogin };

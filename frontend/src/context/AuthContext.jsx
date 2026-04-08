@@ -49,6 +49,22 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const googleLogin = useCallback(async (credential) => {
+    setLoading(true);
+    try {
+      const res = await authAPI.googleLogin(credential);
+      const { token, user } = res.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Google login failed.' };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const register = useCallback(async (data) => {
     setLoading(true);
     try {
@@ -77,7 +93,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, initialized, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, initialized, login, googleLogin, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

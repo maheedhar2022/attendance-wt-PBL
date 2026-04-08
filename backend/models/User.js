@@ -23,9 +23,14 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: false, // Optional for Google OAuth users
       minlength: [6, 'Password must be at least 6 characters'],
       select: false // Don't return password in queries by default
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Unique if set, but can be null
+      select: false
     },
     role: {
       type: String,

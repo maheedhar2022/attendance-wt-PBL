@@ -1,7 +1,7 @@
 // ── routes/auth.js ──────────────────────────────────────────────
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe, updateProfile, uploadAvatar, changePassword } = require('../controllers/authController');
+const { register, login, getMe, updateProfile, uploadAvatar, changePassword, googleLogin } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
@@ -54,6 +54,7 @@ const passwordValidators = [
 
 router.post('/register', authLimiter, registerValidators, handleValidation, register);
 router.post('/login', loginLimiter, loginValidators, handleValidation, login);
+router.post('/google', authLimiter, googleLogin);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.post('/profile/avatar', protect, upload.single('avatar'), uploadAvatar);
