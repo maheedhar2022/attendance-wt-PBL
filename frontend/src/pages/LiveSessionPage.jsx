@@ -356,6 +356,15 @@ export default function LiveSessionPage() {
 
       setupSocketListeners(stream);
       socket.emit('join-live-room', { roomId: roomId.current });
+      
+      // Explicitly broadcast our initial media setup so peers know if our video is off.
+      // E.g. we didn't have a camera, so we fallback to audio-only.
+      setTimeout(() => {
+        const audioIsOn = stream ? stream.getAudioTracks().some(t => t.enabled) : true;
+        const videoIsOn = stream ? stream.getVideoTracks().some(t => t.enabled) : false;
+        socket.emit('media-state-change', { roomId: roomId.current, userId: user._id, audioEnabled: audioIsOn, videoEnabled: videoIsOn });
+      }, 500);
+
       setInRoom(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to join live session.');

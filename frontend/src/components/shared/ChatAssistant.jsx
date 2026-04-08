@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { chatAPI } from '../../utils/api';
 
 export default function ChatAssistant() {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'Hi there! I am the AttendX AI assistant. How can I help you today?' }
@@ -17,6 +19,8 @@ export default function ChatAssistant() {
   useEffect(() => {
     if (isOpen) scrollToBottom();
   }, [messages, isOpen]);
+
+  if (location.pathname.includes('/live/')) return null;
 
   const handleSend = async (e) => {
     e.preventDefault();

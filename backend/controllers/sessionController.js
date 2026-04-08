@@ -338,6 +338,9 @@ const startLiveSession = async (req, res) => {
     session.liveRoomId = liveRoomId;
     session.liveStartedAt = now;
     await session.save();
+    
+    // Populate course before returning
+    await session.populate('course', 'title code');
 
     res.json({
       success: true,
