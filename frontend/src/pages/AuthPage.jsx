@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,6 +6,8 @@ export default function AuthPage() {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student', studentId: '', department: '' });
   const [error, setError] = useState('');
+  const [slowWarning, setSlowWarning] = useState(false);
+  const slowTimer = useRef(null);
   const { login, register, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -14,9 +16,17 @@ export default function AuthPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSlowWarning(false);
+
+    // After 4 seconds of loading, show a "server waking up" hint (Render free tier cold start)
+    slowTimer.current = setTimeout(() => setSlowWarning(true), 4000);
+
     const result = mode === 'login'
       ? await login(form.email, form.password)
       : await register(form);
+
+    clearTimeout(slowTimer.current);
+    setSlowWarning(false);
 
     if (result.success) {
       const user = JSON.parse(localStorage.getItem('user'));
@@ -168,12 +178,28 @@ export default function AuthPage() {
               </div>
             )}
 
+            {slowWarning && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium leading-relaxed animate-pulse">
+                <span className="text-base">⏳</span>
+                <span>
+                  <b>Server is waking up…</b><br/>
+                  The free backend can take 30–60 sec on first request. Please wait.
+                </span>
+              </div>
+            )}
+
             <button 
               type="submit" 
               disabled={loading}
-              className="mt-2 w-full flex items-center justify-center py-3 px-4 rounded-xl font-bold text-sm text-white bg-zoom-blue hover:bg-zoom-blue/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-zoom-blue/20"
+              className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm text-white bg-zoom-blue hover:bg-zoom-blue/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-zoom-blue/20"
             >
-              {loading ? <span className="loading-spinner w-4 h-4 border-[2px] border-white/30 border-t-white" /> : (mode === 'login' ? 'Sign in to account' : 'Complete registration')}
+              {loading
+                ? <>
+                    <span className="loading-spinner w-4 h-4 border-[2px] border-white/30 border-t-white" />
+                    <span>{slowWarning ? 'Waking server…' : 'Signing in…'}</span>
+                  </>
+                : (mode === 'login' ? 'Sign in to account' : 'Complete registration')
+              }
             </button>
           </form>
 

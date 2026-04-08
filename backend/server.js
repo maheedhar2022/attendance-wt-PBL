@@ -21,10 +21,37 @@ const ATTENDANCE_PRESENCE_THRESHOLD = 5 / 6; // must attend ~83% of session
 const app = express();
 const server = http.createServer(app);
 
+// ── Allowed CORS Origins ─────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://attendance-wt-pbl.vercel.app',
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : [])
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    // Allow any *.vercel.app preview URL
+    if (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true
+};
+
 // ── Socket.io ────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`Socket CORS: origin ${origin} not allowed`));
+    },
     methods: ['GET', 'POST']
   }
 });
@@ -237,10 +264,7 @@ io.on('connection', (socket) => {
 });
 
 // ── Middleware ──────────────────────────────────────────────────
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
