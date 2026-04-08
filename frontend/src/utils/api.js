@@ -40,7 +40,10 @@ export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
   getMe: () => api.get('/auth/me'),
-  updateProfile: (data) => api.put('/auth/profile', data)
+  updateProfile: (data) => api.put('/auth/profile', data),
+  uploadAvatar: (formData) => api.post('/auth/profile/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 };
 
 // ── Courses ─────────────────────────────────────────────────

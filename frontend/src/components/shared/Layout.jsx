@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { sessionsAPI } from '../../utils/api';
+import { sessionsAPI, authAPI } from '../../utils/api';
 import ChatAssistant from './ChatAssistant';
 
 const buildNav = (role) =>
@@ -21,13 +21,39 @@ const buildNav = (role) =>
       ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const navItems = buildNav(user?.role);
   const [hasLive, setHasLive] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('sidebarCollapsed') === 'true';
   });
+  const fileInputRef = useRef(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await authAPI.uploadAvatar(formData);
+      if (res.data.success && updateUser) {
+        updateUser(res.data.user);
+      }
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   // Poll for live sessions every 15s to show the pulsing dot
   useEffect(() => {
@@ -53,7 +79,7 @@ export default function Layout() {
     <div className="flex h-screen bg-zinc-950 overflow-hidden font-sans text-zinc-100">
       
       {/* Sidebar Desktop */}
-      <aside className={`relative bg-zinc-950 border-r border-zinc-800/80 flex flex-col pt-6 pb-5 flex-shrink-0 transition-[width] duration-300 ${isCollapsed ? 'w-[88px]' : 'w-64'}`}>
+      <aside className={`relative bg-zinc-950 border-r border-zinc-800/80 flex flex-col pt-6 pb-5 shrink-0 transition-[width] duration-300 ${isCollapsed ? 'w-[88px]' : 'w-64'}`}>
         
         {/* Toggle Button */}
         <button 
@@ -66,7 +92,7 @@ export default function Layout() {
 
         {/* Brand Logo */}
         <div className={`px-5 pb-6 border-b border-zinc-800/80 mb-6 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 overflow-hidden'}`}>
-          <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-zoom-blue to-blue-600 flex items-center justify-center font-bold text-[15px] text-white shadow-lg shadow-zoom-blue/20">
+          <div className="w-9 h-9 shrink-0 rounded-xl bg-linear-to-br from-zoom-blue to-blue-600 flex items-center justify-center font-bold text-[15px] text-white shadow-lg shadow-zoom-blue/20">
             AX
           </div>
           {!isCollapsed && <span className="font-bold text-[19px] tracking-tight text-white whitespace-nowrap animate-fade-in">AttendX</span>}
@@ -109,11 +135,25 @@ export default function Layout() {
         {/* Footer User Card */}
         <div className="mt-auto px-4 pt-4 border-t border-zinc-800/80 space-y-2">
           <div className={`flex items-center ${isCollapsed ? 'justify-center p-0 border-transparent bg-transparent' : 'gap-3 p-2 bg-zinc-900/50 border-zinc-800/50'} rounded-xl border transition-all duration-300 overflow-hidden`}>
-            <div className="w-9 h-9 shrink-0 rounded-full relative flex items-center justify-center bg-zinc-800 text-zinc-300 font-bold text-[13px] border border-zinc-700/50" title={isCollapsed ? user?.name : undefined}>
-              {initials}
+            <div 
+              onClick={handleAvatarClick}
+              className="w-9 h-9 shrink-0 rounded-full relative flex items-center justify-center bg-zinc-800 text-zinc-300 font-bold text-[13px] border border-zinc-700/50 cursor-pointer hover:opacity-80 transition-opacity" 
+              title={isCollapsed ? user?.name : "Change Profile Picture"}
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                initials
+              )}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                </div>
+              )}
               {/* Online Indicator */}
               <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
             </div>
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
             {!isCollapsed && (
               <div className="flex-1 min-w-0 animate-fade-in">
                 <div className="text-sm font-bold text-white truncate">{user?.name}</div>

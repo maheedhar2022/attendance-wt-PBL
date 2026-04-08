@@ -103,4 +103,28 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile };
+/**
+ * @desc    Update avatar
+ * @route   POST /api/auth/profile/avatar
+ * @access  Private
+ */
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file provided.' });
+    }
+    
+    // req.file.path contains the URL to the Cloudinary image
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: req.file.path },
+      { new: true, runValidators: true }
+    );
+    
+    res.json({ success: true, user: user.toPublicJSON() });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { register, login, getMe, updateProfile, uploadAvatar };

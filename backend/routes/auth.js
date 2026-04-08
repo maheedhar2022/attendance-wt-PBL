@@ -1,10 +1,11 @@
 // ── routes/auth.js ──────────────────────────────────────────────
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe, updateProfile } = require('../controllers/authController');
+const { register, login, getMe, updateProfile, uploadAvatar } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+const { upload } = require('../config/cloudinary');
 
 // ── Rate Limiters ────────────────────────────────────────────────
 const authLimiter = rateLimit({
@@ -50,5 +51,6 @@ router.post('/register', authLimiter, registerValidators, handleValidation, regi
 router.post('/login', loginLimiter, loginValidators, handleValidation, login);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+router.post('/profile/avatar', protect, upload.single('avatar'), uploadAvatar);
 
 module.exports = router;
