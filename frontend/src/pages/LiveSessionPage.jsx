@@ -112,6 +112,13 @@ export default function LiveSessionPage() {
   const [participantCount, setParticipantCount] = useState(0);
   const [sessionEnded, setSessionEnded] = useState(false);
 
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useRef(null);
+
   // Time tracking
   const [timeToStart, setTimeToStart] = useState(null);
   const [canStartNow, setCanStartNow] = useState(false);
@@ -206,7 +213,7 @@ export default function LiveSessionPage() {
     peerConnectionsRef.current = {};
     if (timeCheckRef.current) clearInterval(timeCheckRef.current);
     if (autoEndTimerRef.current) clearTimeout(autoEndTimerRef.current);
-    ['room-participants', 'peer-joined', 'peer-left', 'receive-offer', 'receive-answer', 'receive-ice-candidate', 'peer-media-state', 'participant-count', 'session-ended'].forEach(ev => socket.off(ev));
+    ['room-participants', 'peer-joined', 'peer-left', 'receive-offer', 'receive-answer', 'receive-ice-candidate', 'peer-media-state', 'peer-chat-message', 'participant-count', 'session-ended'].forEach(ev => socket.off(ev));
     socket.disconnect();
   }, []);
 
@@ -298,6 +305,14 @@ export default function LiveSessionPage() {
 
     socket.on('peer-media-state', ({ userId: uid, audioEnabled: a, videoEnabled: v }) => {
       setParticipants(prev => prev.map(p => p.userId === uid ? { ...p, audioEnabled: a, videoEnabled: v } : p));
+    });
+
+    socket.on('peer-chat-message', (msg) => {
+      setChatMessages(prev => [...prev, msg]);
+      setIsChatOpen(prevOpen => {
+        if (!prevOpen) setUnreadCount(c => c + 1);
+        return prevOpen;
+      });
     });
 
     socket.on('participant-count', count => setParticipantCount(count));
@@ -404,6 +419,25 @@ export default function LiveSessionPage() {
     setVideoEnabled(!videoEnabled);
     socket.emit('media-state-change', { roomId: roomId.current, userId: user._id, audioEnabled, videoEnabled: !videoEnabled });
   };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const msgData = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+      userId: user._id, userName: user.name, role: user.role, avatar: user.avatar,
+      message: chatInput.trim(), timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, msgData]);
+    socket.emit('session-chat-message', { roomId: roomId.current, message: chatInput.trim() });
+    setChatInput('');
+  };
+
+  useEffect(() => {
+    if (isChatOpen && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, isChatOpen]);
 
   /* ── RENDER: Lobby ════════════════════════════════ */
   if (loading) return (
@@ -546,36 +580,98 @@ export default function LiveSessionPage() {
         </div>
       </header>
 
-      {/* Main Video Area */}
-      <main className="flex-1 p-2 sm:p-4 overflow-hidden flex relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 to-black">
-        {/* Gallery / Spotlight View */}
-        <div className={`w-full h-full mx-auto flex gap-4 ${instructorParticipant && studentParticipants.length > 0 ? 'flex-col md:flex-row' : ''}`}>
-          
-          {/* Spotlight (Instructor) */}
-          {instructorParticipant && (
-            <div className={`transition-all duration-500 ease-in-out ${studentParticipants.length > 0 ? 'h-3/5 md:h-full md:flex-1 lg:w-3/4' : 'w-full h-full mx-auto'}`}>
-              <VideoTile stream={instructorParticipant.stream} name={instructorParticipant.userName} avatar={instructorParticipant.avatar} isSelf={instructorParticipant.isSelf} isMuted={!instructorParticipant.audioEnabled} isVideoOff={!instructorParticipant.videoEnabled} isInstructor={true} dominant={true} />
-            </div>
-          )}
-
-          {/* Gallery (Students) */}
-          <div className={`transition-all overflow-y-auto custom-scrollbar content-start
-            ${studentParticipants.length === 0 ? 'hidden' : ''}
-            ${instructorParticipant ? 'h-2/5 md:h-full md:w-64 lg:w-80 flex gap-2 md:block space-y-0 md:space-y-4' : 
-              `grid gap-4 w-full h-full mx-auto items-center justify-center
-               ${studentParticipants.length === 1 ? 'grid-cols-1 md:grid-cols-2' : 
-                 studentParticipants.length <= 4 ? 'grid-cols-2 lg:grid-cols-2' : 
-                 studentParticipants.length <= 9 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}
-              `}`}
-          >
-            {(!instructorParticipant ? allParticipants : studentParticipants).map(p => (
-              <div key={p.userId} className={`${instructorParticipant ? 'w-48 shrink-0 md:w-full md:aspect-video aspect-video' : ''}`}>
-                <VideoTile stream={p.stream} name={p.userName} avatar={p.avatar} isSelf={p.isSelf} isMuted={!p.audioEnabled} isVideoOff={!p.videoEnabled} isInstructor={p.role === 'instructor'} />
+      {/* Main Content & Sidebar Wrapper */}
+      <div className="flex-1 overflow-hidden flex relative">
+        
+        {/* Main Video Area */}
+        <main className={`flex-1 p-2 sm:p-4 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 to-black transition-all ${isChatOpen ? 'pr-2 md:pr-4' : ''}`}>
+          {/* Gallery / Spotlight View */}
+          <div className={`w-full h-full mx-auto flex gap-4 ${instructorParticipant && studentParticipants.length > 0 ? 'flex-col md:flex-row' : ''}`}>
+            
+            {/* Spotlight (Instructor) */}
+            {instructorParticipant && (
+              <div className={`transition-all duration-500 ease-in-out ${studentParticipants.length > 0 ? 'h-3/5 md:h-full md:flex-1 lg:w-3/4' : 'w-full h-full mx-auto'}`}>
+                <VideoTile stream={instructorParticipant.stream} name={instructorParticipant.userName} avatar={instructorParticipant.avatar} isSelf={instructorParticipant.isSelf} isMuted={!instructorParticipant.audioEnabled} isVideoOff={!instructorParticipant.videoEnabled} isInstructor={true} dominant={true} />
               </div>
-            ))}
+            )}
+
+            {/* Gallery (Students) */}
+            <div className={`transition-all overflow-y-auto custom-scrollbar content-start
+              ${studentParticipants.length === 0 ? 'hidden' : ''}
+              ${instructorParticipant ? 'h-2/5 md:h-full md:w-64 lg:w-80 flex gap-2 md:block space-y-0 md:space-y-4' : 
+                `grid gap-4 w-full h-full mx-auto items-center justify-center
+                 ${studentParticipants.length === 1 ? 'grid-cols-1 md:grid-cols-2' : 
+                   studentParticipants.length <= 4 ? 'grid-cols-2 lg:grid-cols-2' : 
+                   studentParticipants.length <= 9 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}
+                `}`}
+            >
+              {(!instructorParticipant ? allParticipants : studentParticipants).map(p => (
+                <div key={p.userId} className={`${instructorParticipant ? 'w-48 shrink-0 md:w-full md:aspect-video aspect-video' : ''}`}>
+                  <VideoTile stream={p.stream} name={p.userName} avatar={p.avatar} isSelf={p.isSelf} isMuted={!p.audioEnabled} isVideoOff={!p.videoEnabled} isInstructor={p.role === 'instructor'} />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+
+        {/* Chat Sidebar */}
+        {isChatOpen && (
+          <aside className="w-full md:w-[340px] border-l border-zinc-800 bg-zinc-950/90 backdrop-blur-2xl flex flex-col shrink-0 z-40 absolute md:relative right-0 h-full shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+            {/* Header */}
+            <div className="h-16 px-4 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/50">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-zoom-blue"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75c2.605 0 4.97-.935 6.772-2.5l2.478 2.478c.31.31.782.164.846-.263l.354-2.316a9.75 9.75 0 00-10.45-19.4z" clipRule="evenodd" /></svg>
+                Session Chat
+              </h3>
+              <button onClick={() => setIsChatOpen(false)} className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg></button>
+            </div>
+            
+            {/* Messages Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar bg-zinc-950/40">
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-sm">
+                  <span className="text-4xl mb-3 opacity-20">💬</span>
+                  <p>No messages yet.</p>
+                  <p className="text-xs opacity-70">Say hello!</p>
+                </div>
+              ) : (
+                chatMessages.map(msg => (
+                  <div key={msg.id} className={`flex flex-col ${msg.userId === user._id ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-end gap-2 max-w-[85%]">
+                      {msg.userId !== user._id && (
+                        <div className="w-6 h-6 rounded-full bg-zinc-800 shrink-0 border border-zinc-700 overflow-hidden text-[10px] font-bold flex items-center justify-center">
+                          {msg.avatar ? <img src={msg.avatar} alt={msg.userName} className="w-full h-full object-cover" /> : msg.userName?.[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm ${msg.userId === user._id ? 'bg-zoom-blue text-white rounded-br-sm' : 'bg-zinc-800/80 border border-zinc-700/50 text-zinc-200 rounded-bl-sm'}`}>
+                        {msg.userId !== user._id && <span className="block text-[10px] font-bold text-zinc-400 mb-0.5">{msg.userName}</span>}
+                        {msg.message}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Footer */}
+            <div className="p-3 bg-zinc-900/80 border-t border-zinc-800/80">
+              <form onSubmit={handleSendMessage} className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zoom-blue/60 focus:ring-1 focus:ring-zoom-blue/60 transition"
+                />
+                <button type="submit" disabled={!chatInput.trim()} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-zoom-blue hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-zoom-blue text-white transition-all shadow-md shadow-zoom-blue/20">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 translate-x-[1px]"><path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" /></svg>
+                </button>
+              </form>
+            </div>
+          </aside>
+        )}
+      </div>
 
       {/* Bottom Controls Bar */}
       <footer className="h-20 sm:h-24 bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-800/80 px-4 sm:px-6 flex justify-between items-center z-50 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
@@ -597,6 +693,14 @@ export default function LiveSessionPage() {
           <button onClick={toggleVideo} className={`group relative flex flex-col items-center justify-center w-[52px] h-[52px] sm:w-[64px] sm:h-[64px] rounded-full transition-all duration-300 shadow-md ${!videoEnabled ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 hover:-translate-y-1'}`}>
             {videoEnabled ? <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] sm:w-[28px] sm:h-[28px]"><path d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h8.25a3 3 0 003-3v-9a3 3 0 00-3-3H4.5zM19.94 5.904A2.25 2.25 0 0017.25 6v12a2.25 2.25 0 002.69 2.096l3.454-1.151a1.5 1.5 0 001.106-1.424v-11.04a1.5 1.5 0 00-1.106-1.424l-3.454-1.151z" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] sm:w-[28px] sm:h-[28px]"><path d="M3.53 2.47a.75.75 0 00-1.06 1.06l18 18a.75.75 0 101.06-1.06l-18-18zM20.25 5.507v11.561L5.853 2.671c.15-.043.306-.075.467-.092H15.75a3 3 0 013 3v.006l1.5-.078zM15.75 17.5c.34 0 .673-.057.994-.16l-8.682-8.681A3.003 3.003 0 004.5 11.25v2.247c0 .151.01.302.03.45l-1.05.525a1.5 1.5 0 00-1.106 1.424v6.104h8.25c1.243 0 2.308-.755 2.766-1.84z" /></svg>}
             <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 text-white text-xs px-2.5 py-1 rounded shadow-lg pointer-events-none whitespace-nowrap border border-zinc-700">{videoEnabled ? 'Stop Video' : 'Start Video'}</div>
+          </button>
+          
+          <button onClick={() => { setIsChatOpen(!isChatOpen); setUnreadCount(0); }} className={`group relative flex flex-col items-center justify-center w-[52px] h-[52px] sm:w-[64px] sm:h-[64px] rounded-full transition-all duration-300 shadow-md ${isChatOpen ? 'bg-zoom-blue hover:bg-blue-600 text-white shadow-zoom-blue/20' : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 hover:-translate-y-1'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[20px] h-[20px] sm:w-[24px] sm:h-[24px]"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75c2.605 0 4.97-.935 6.772-2.5l2.478 2.478c.31.31.782.164.846-.263l.354-2.316a9.75 9.75 0 00-10.45-19.4z" clipRule="evenodd" /></svg>
+            {!isChatOpen && unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow ring-2 ring-zinc-900 border border-red-500/20">{unreadCount > 9 ? '9+' : unreadCount}</span>
+            )}
+            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 text-white text-xs px-2.5 py-1 rounded shadow-lg pointer-events-none whitespace-nowrap border border-zinc-700">{isChatOpen ? 'Close Chat' : 'Open Chat'}</div>
           </button>
         </div>
 

@@ -236,6 +236,20 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('peer-media-state', { userId, audioEnabled, videoEnabled });
   });
 
+  // Ephemeral Session Chat
+  socket.on('session-chat-message', ({ roomId, message }) => {
+    if (!roomId || !message?.trim() || !socket.user) return;
+    socket.to(roomId).emit('peer-chat-message', {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // basic unique id
+      userId: socket.user._id,
+      userName: socket.user.name,
+      role: socket.user.role,
+      avatar: socket.user.avatar,
+      message: message.substring(0, 1000), // sanitize max length
+      timestamp: new Date()
+    });
+  });
+
   // Disconnect cleanup
   socket.on('disconnect', () => {
     for (const roomId in liveRooms) {
