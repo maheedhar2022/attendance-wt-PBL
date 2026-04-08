@@ -49,7 +49,8 @@ export default function Layout() {
       }
     } catch (error) {
       console.error('Failed to upload avatar:', error);
-      alert('Failed to upload avatar. Please try again.');
+      const errMsg = error.response?.data?.message || 'Please try again.';
+      alert(`Failed to upload avatar: ${errMsg}`);
     } finally {
       setUploadingAvatar(false);
     }
