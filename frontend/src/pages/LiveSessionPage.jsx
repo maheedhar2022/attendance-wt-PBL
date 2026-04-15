@@ -348,10 +348,12 @@ export default function LiveSessionPage() {
     });
   };
 
-  const joinRoom = async () => {
+  const joinRoom = async (overrideRoomId) => {
     setJoining(true); setError('');
     try {
-      if (!isInstructor) {
+      if (overrideRoomId && typeof overrideRoomId === 'string') {
+        roomId.current = overrideRoomId;
+      } else if (!isInstructor) {
         const res = await sessionsAPI.joinLive(sessionId);
         roomId.current = res.data.liveRoomId;
       } else roomId.current = session.liveRoomId;
@@ -392,7 +394,7 @@ export default function LiveSessionPage() {
     try {
       const res = await sessionsAPI.startLive(sessionId);
       setSession(res.data.session);
-      await joinRoom();
+      await joinRoom(res.data.liveRoomId);
     } catch (err) { setError(err.response?.data?.message || 'Failed to start live session.'); setJoining(false); }
   };
 
