@@ -151,6 +151,10 @@ const changePassword = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    if (!user.password && user.googleId) {
+      return res.status(400).json({ success: false, message: 'Your account uses Google Sign-In. Password change is not applicable.' });
+    }
+
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Incorrect current password.' });

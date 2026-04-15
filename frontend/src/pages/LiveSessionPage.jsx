@@ -398,7 +398,7 @@ export default function LiveSessionPage() {
 
   const handleEndLive = async () => {
     if (!window.confirm('End the session for everyone?')) return;
-    try { socket.emit('end-live-session', { roomId: roomId.current, sessionId }); await sessionsAPI.endLive(sessionId); cleanup(); navigate(-1); } catch (e) {}
+    try { await sessionsAPI.endLive(sessionId); cleanup(); navigate(-1); } catch (e) {}
   };
 
   const handleLeave = () => {

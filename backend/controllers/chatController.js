@@ -1,11 +1,17 @@
 const { OpenAI } = require('openai');
 
-const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-});
+let openai = null;
+if (process.env.GROQ_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: "https://api.groq.com/openai/v1",
+  });
+}
 
 exports.handleChat = async (req, res) => {
+  if (!openai) {
+    return res.status(503).json({ success: false, message: 'Chat AI is not configured on the server.' });
+  }
   try {
     const { messages } = req.body;
 

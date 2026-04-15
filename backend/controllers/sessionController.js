@@ -361,20 +361,37 @@ const startLiveSession = async (req, res) => {
  */
 const endLiveSession = async (req, res) => {
   try {
-    // Only clear live-video fields — do NOT change status to 'closed'.
-    // The server-side scheduler (autoUpdateSessionStatuses) will close
-    // the session automatically when the scheduled endTime (IST) passes.
-    const session = await Session.findOneAndUpdate(
-      { _id: req.params.id, instructor: req.user._id },
-      { liveSessionActive: false, liveRoomId: null },
-      { new: true }
-    );
-
-    if (!session) {
+    const sessionToUpdate = await Session.findOne({ _id: req.params.id, instructor: req.user._id });
+    if (!sessionToUpdate) {
       return res.status(404).json({ success: false, message: 'Session not found.' });
     }
 
-    res.json({ success: true, session, message: 'Live video ended. Session remains active until its scheduled end time.' });
+    const roomId = sessionToUpdate.liveRoomId;
+
+    // Only clear live-video fields — do NOT change status to 'closed'.
+    // The server-side scheduler (autoUpdateSessionStatuses) will close
+    // the session automatically when the scheduled endTime (IST) passes.
+    sessionToUpdate.liveSessionActive = false;
+    sessionToUpdate.liveRoomId = null;
+    await sessionToUpdate.save();
+
+    if (roomId) {
+      const io = req.app.get('io');
+      const markAttendanceForRoom = req.app.get('markAttendanceForRoom');
+      const liveRooms = req.app.get('liveRooms');
+      
+      if (markAttendanceForRoom) {
+        await markAttendanceForRoom(sessionToUpdate._id.toString(), roomId);
+      }
+      if (io) {
+        io.to(roomId).emit('session-ended');
+      }
+      if (liveRooms && liveRooms[roomId]) {
+        delete liveRooms[roomId];
+      }
+    }
+
+    res.json({ success: true, session: sessionToUpdate, message: 'Live video ended. Session remains active until its scheduled end time.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

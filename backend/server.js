@@ -204,32 +204,7 @@ io.on('connection', (socket) => {
     io.to(to).emit('receive-ice-candidate', { candidate, from: safeFrom });
   });
 
-  // Instructor ends the live session for all
-  socket.on('end-live-session', async ({ roomId, sessionId }) => {
-    if (socket.user.role !== 'instructor') {
-      console.log(`🔴 Unauthorized end-live-session attempt by non-instructor ${socket.user.name}`);
-      return;
-    }
 
-    if (!sessionId) {
-      console.log(`🔴 Unauthorized: missing sessionId for end-live-session`);
-      return;
-    }
-
-    const Session = require('./models/Session');
-    const session = await Session.findById(sessionId);
-    if (!session || session.instructor.toString() !== socket.user._id) {
-      console.log(`🔴 Unauthorized: ${socket.user.name} does not own session ${sessionId}`);
-      return;
-    }
-    
-    // Mark attendance FIRST based on actual presence, then notify clients
-    await markAttendanceForRoom(sessionId, roomId);
-
-    io.to(roomId).emit('session-ended');
-    delete liveRooms[roomId];
-    console.log(`🔴 Live session ended for room ${roomId}`);
-  });
 
   // Mute/unmute/camera events broadcast to room
   socket.on('media-state-change', ({ roomId, userId, audioEnabled, videoEnabled }) => {
