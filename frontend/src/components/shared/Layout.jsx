@@ -8,16 +8,20 @@ const buildNav = (role) =>
   role === 'instructor'
     ? [
         { to: '/instructor', label: 'Dashboard', icon: '⊞', end: true },
-        { to: '/instructor/sessions', label: 'Sessions', icon: '📅', isSession: true },
+        { to: '/instructor/sessions', label: 'Live Sessions', icon: '🎥', isSession: true },
+        { to: '/instructor/calendar', label: 'Calendar', icon: '📆' },
         { to: '/instructor/courses', label: 'Courses', icon: '📚' },
+        { to: '/instructor/announcements', label: 'Announcements', icon: '📢' },
         { to: '/instructor/attendance', label: 'Attendance', icon: '✅' },
         { to: '/instructor/analytics', label: 'Analytics', icon: '📊' },
         { to: '/instructor/profile', label: 'Settings', icon: '⚙️' },
       ]
     : [
         { to: '/student', label: 'Dashboard', icon: '⊞', end: true },
-        { to: '/student/sessions', label: 'Sessions', icon: '📅', isSession: true },
+        { to: '/student/sessions', label: 'Live Sessions', icon: '🎥', isSession: true },
+        { to: '/student/calendar', label: 'Calendar', icon: '📆' },
         { to: '/student/courses', label: 'My Courses', icon: '📚' },
+        { to: '/student/announcements', label: 'Announcements', icon: '📢' },
         { to: '/student/attendance', label: 'Attendance', icon: '✅' },
         { to: '/student/profile', label: 'Settings', icon: '⚙️' },
       ];
